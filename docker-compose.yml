@@ -44,21 +44,21 @@ services:
       - app_network
     restart: unless-stopped
 
-  # api:
-  #   build: 
-  #     context: ./api
-  #     dockerfile: Dockerfile
-  #   container_name: app_api
-  #   ports:
-  #     - "4000:4000"
-  #   environment:
-  #     - PORT=4000
-  #   depends_on:
-  #     - backend
-  #     - mysql
-  #   networks:
-  #     - app_network
-  #   restart: unless-stopped
+  api:
+    build: 
+      context: ./workspace/api
+      dockerfile: Dockerfile
+    container_name: app_api
+    ports:
+      - "4000:4000"
+    environment:
+      - PORT=4000
+    depends_on:
+      - backend
+      - mysql
+    networks:
+      - app_network
+    restart: unless-stopped
 
 networks:
   app_network:
