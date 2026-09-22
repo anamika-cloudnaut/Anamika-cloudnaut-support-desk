@@ -1,0 +1,65 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: app_mysql
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=app
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  # frontend:
+  #   build: 
+  #     context: ./frontend
+  #     dockerfile: Dockerfile
+  #   container_name: app_frontend
+  #   ports:
+  #     - "3000:3000" # Maps host port 3000 to container port 3000
+  #   environment:
+  #     - REACT_APP_API_URL=http://localhost:4000
+  #   depends_on:
+  #     - backend
+  #     - api
+  #     - mysql
+  #   networks:
+  #     - app_network
+  #   restart: unless-stopped
+
+  backend:
+    build: 
+      context: ./workspace/backend
+      dockerfile: Dockerfile
+    container_name: app_backend
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=development
+      - API_SERVICE_URL=http://api:4000
+    depends_on:
+      - mysql
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  # api:
+  #   build: 
+  #     context: ./api
+  #     dockerfile: Dockerfile
+  #   container_name: app_api
+  #   ports:
+  #     - "4000:4000"
+  #   environment:
+  #     - PORT=4000
+  #   depends_on:
+  #     - backend
+  #     - mysql
+  #   networks:
+  #     - app_network
+  #   restart: unless-stopped
+
+networks:
+  app_network:
+    driver: bridge
