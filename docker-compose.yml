@@ -1,61 +1,22 @@
+version: '3.8'
+
 services:
-  mysql:
-    image: mysql:8.0
-    container_name: app_mysql
+  db:
+    image: postgres:16-alpine
+    container_name: app_db
     ports:
-      - "3306:3306"
+      - "5432:5432"
     environment:
-      - MYSQL_ROOT_PASSWORD=root
-      - MYSQL_DATABASE=app
-    networks:
-      - app_network
-    restart: unless-stopped
-
-  # frontend:
-  #   build: 
-  #     context: ./frontend
-  #     dockerfile: Dockerfile
-  #   container_name: app_frontend
-  #   ports:
-  #     - "3000:3000" # Maps host port 3000 to container port 3000
-  #   environment:
-  #     - REACT_APP_API_URL=http://localhost:4000
-  #   depends_on:
-  #     - backend
-  #     - api
-  #     - mysql
-  #   networks:
-  #     - app_network
-  #   restart: unless-stopped
-
-  backend:
-    build: 
-      context: ./workspace/backend
-      dockerfile: Dockerfile
-    container_name: app_backend
-    ports:
-      - "8080:8080"
-    environment:
-      - NODE_ENV=development
-      - API_SERVICE_URL=http://api:4000
-    depends_on:
-      - mysql
-    networks:
-      - app_network
-    restart: unless-stopped
-
-  api:
-    build: 
-      context: ./workspace/api
-      dockerfile: Dockerfile
-    container_name: app_api
-    ports:
-      - "4000:4000"
-    environment:
-      - PORT=4000
-    depends_on:
-      - backend
-      - mysql
+      - POSTGRES_USER=cloudnaut
+      - POSTGRES_PASSWORD=cloudnaut_pass
+      - POSTGRES_DB=cloudnaut_db
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cloudnaut -d cloudnaut_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     networks:
       - app_network
     restart: unless-stopped
@@ -63,3 +24,6 @@ services:
 networks:
   app_network:
     driver: bridge
+
+volumes:
+  pgdata:
