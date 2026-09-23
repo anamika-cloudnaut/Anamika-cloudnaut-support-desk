@@ -1,5 +1,5 @@
 import pytest
-from backend.app.services.status_service import validate_status_transition
+from app.services.status_service import validate_status_transition
 
 def test_valid_transitions():
     assert validate_status_transition("Open", "In Progress") is True
