@@ -2,11 +2,12 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-COPY requirements.txt .
-
+COPY workspace/backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app /app/app
+# Copy backend app and database package into /app
+COPY workspace/backend/app /app/app
+COPY database /app/database
 
 ENV PYTHONPATH=/app
 
