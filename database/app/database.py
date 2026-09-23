@@ -1,18 +1,23 @@
 import os
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.orm import sessionmaker
+from database.app.models import Base
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL", "postgresql://cloudnaut:cloudnaut_pass@localhost:5432/cloudnaut_db"
 )
 
-engine = create_engine(DATABASE_URL)
+engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
+
+
+def init_db():
+    """Create all tables if they do not exist."""
+    Base.metadata.create_all(bind=engine)
 
 
 def get_db():
-    """FastAPI dependency — gives each request its own DB session, always closed after."""
+    """Dependency for yielding database sessions."""
     db = SessionLocal()
     try:
         yield db
