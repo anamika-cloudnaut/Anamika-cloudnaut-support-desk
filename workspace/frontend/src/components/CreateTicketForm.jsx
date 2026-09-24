@@ -44,7 +44,7 @@ function CreateTicketForm({ onSuccess }) {
     console.log('JSON PAYLOAD:', JSON.stringify(payload))
 
     try {
-      const response = await fetch('http://localhost:8000/requests', {
+      const response = await fetch('http://localhost:4000/requests', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
