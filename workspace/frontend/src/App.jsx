@@ -12,8 +12,19 @@ function App() {
   due_date: '',
 })
    const handleSubmit = async () => {
-  console.log(formData)
+  const response = await fetch('http://localhost:8000/requests', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(formData),
+  })
+
+  const data = await response.json()
+
+  console.log(data)
 }
+
   return (
     <div>
       <h1>Cloudnaut Support Desk</h1>
