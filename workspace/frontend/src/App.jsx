@@ -1,135 +1,166 @@
 import { useState } from 'react'
+import CreateTicketForm from './components/CreateTicketForm'
+import TicketSuccess from './components/TicketSuccess'
+import './App.css'
 
 function App() {
   const [showForm, setShowForm] = useState(false)
- const [formData, setFormData] = useState({
-  title: '',
-  description: '',
-  requester_name: '',
-  requester_email: '',
-  category: '',
-  priority: '',
-  due_date: '',
-})
-   const handleSubmit = async () => {
-  const response = await fetch('http://localhost:8000/requests', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(formData),
-  })
+  const [createdTicket, setCreatedTicket] = useState(null)
 
-  const data = await response.json()
+  const handleTicketSuccess = (ticket) => {
+    console.log('Ticket created successfully:', ticket)
+    setCreatedTicket(ticket)
+  }
 
-  console.log(data)
-}
+  const handleCreateAnother = () => {
+    setCreatedTicket(null)
+    setShowForm(false)
+  }
+
+  if (createdTicket) {
+    return (
+      <div className="app-shell">
+        <TicketSuccess
+          ticket={createdTicket}
+          onCreateAnother={handleCreateAnother}
+        />
+      </div>
+    )
+  }
 
   return (
-    <div>
-      <h1>Cloudnaut Support Desk</h1>
+    <div className="app-shell">
 
-      <p>Manage and track support tickets.</p>
+      <div className="background-glow glow-one"></div>
+      <div className="background-glow glow-two"></div>
 
-      <button onClick={() => setShowForm(true)}>
-        Create Ticket
-      </button>
+      <main className="app-container">
 
-    {showForm && (
-  <div>
-    <h2>Create Ticket</h2>
+        <header className="hero-section">
 
-   <input
-  placeholder="Title"
-  value={formData.title}
-  onChange={(event) =>
-    setFormData({
-      ...formData,
-      title: event.target.value,
-    })
-  }
-/>
+          <div className="brand-badge">
+            <span className="status-dot"></span>
+            Internal Support System
+          </div>
 
-    <textarea
-  placeholder="Description"
-  value={formData.description}
-  onChange={(event) =>
-    setFormData({
-      ...formData,
-      description: event.target.value,
-    })
-  }
-/>
+          <h1>
+            Cloudnaut <span>Support Desk</span>
+          </h1>
 
-    <input
-  placeholder="Requester Name"
-  value={formData.requester_name}
-  onChange={(event) =>
-    setFormData({
-      ...formData,
-      requester_name: event.target.value,
-    })
-  }
-/>
+          <p className="hero-subtitle">
+            Create and manage technical support requests
+            through one centralized platform.
+          </p>
 
-   <input
-  type="email"
-  placeholder="Requester Email"
-  value={formData.requester_email}
-  onChange={(event) =>
-    setFormData({
-      ...formData,
-      requester_email: event.target.value,
-    })
-  }
-/>
+        </header>
 
-    <select
-  value={formData.category}
-  onChange={(event) =>
-    setFormData({
-      ...formData,
-      category: event.target.value,
-    })
-  }
->
-  <option value="">Select Category</option>
-  <option value="Application">Application</option>
-  <option value="Access">Access</option>
-  <option value="Infrastructure">Infrastructure</option>
-  <option value="Data">Data</option>
-  <option value="Other">Other</option>
-</select>
+        {!showForm && (
+          <section className="welcome-card">
 
-    <select
-  value={formData.priority}
-  onChange={(event) =>
-    setFormData({
-      ...formData,
-      priority: event.target.value,
-    })
-  }
->
-  <option value="">Select Priority</option>
-  <option value="Low">Low</option>
-  <option value="Medium">Medium</option>
-  <option value="High">High</option>
-  <option value="Critical">Critical</option>
-</select>
+            <div className="welcome-icon">
+              🎫
+            </div>
 
-    <input
-  type="date"
-  value={formData.due_date}
-  onChange={(event) =>
-    setFormData({
-      ...formData,
-      due_date: event.target.value,
-    })
-  }
-/>
-    <button onClick={handleSubmit}>Submit Ticket</button>
-  </div>
-)}
+            <span className="section-label">
+              SUPPORT PORTAL
+            </span>
+
+            <h2>How can we help you?</h2>
+
+            <p>
+              Submit a technical support request and provide
+              the details our team needs to investigate your issue.
+            </p>
+
+            <button
+              className="primary-button"
+              onClick={() => setShowForm(true)}
+            >
+              <span>Create Support Ticket</span>
+              <span className="button-arrow">→</span>
+            </button>
+
+            <div className="feature-grid">
+
+              <div className="feature-item">
+                <div className="feature-icon">⚡</div>
+                <div>
+                  <h3>Quick Submission</h3>
+                  <p>
+                    Create a request in just a few steps.
+                  </p>
+                </div>
+              </div>
+
+              <div className="feature-item">
+                <div className="feature-icon">🛠️</div>
+                <div>
+                  <h3>Technical Support</h3>
+                  <p>
+                    Report application, access or infrastructure issues.
+                  </p>
+                </div>
+              </div>
+
+              <div className="feature-item">
+                <div className="feature-icon">📋</div>
+                <div>
+                  <h3>Track Requests</h3>
+                  <p>
+                    Every submitted request gets a unique ticket ID.
+                  </p>
+                </div>
+              </div>
+
+            </div>
+
+          </section>
+        )}
+
+        {showForm && (
+          <section className="ticket-form-card">
+
+            <div className="form-header">
+
+              <div>
+                <span className="section-label">
+                  NEW SUPPORT REQUEST
+                </span>
+
+                <h2>Create Ticket</h2>
+
+                <p>
+                  Enter the information below to submit your
+                  support request.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="close-button"
+                onClick={() => setShowForm(false)}
+              >
+                ×
+              </button>
+
+            </div>
+
+            <div className="form-divider"></div>
+
+            <CreateTicketForm
+              onSuccess={handleTicketSuccess}
+            />
+
+          </section>
+        )}
+
+      </main>
+
+      <footer className="app-footer">
+        <strong>Cloudnaut Support Desk</strong>
+        <span>Technical Support Management System</span>
+      </footer>
+
     </div>
   )
 }
