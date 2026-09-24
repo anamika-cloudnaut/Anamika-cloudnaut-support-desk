@@ -1,7 +1,7 @@
 
 import { useState } from 'react'
-import CreateTicketForm from './component/CreateTicketForm'
-import TicketSuccess from './component/TicketSuccess'
+import CreateTicketForm from './components/CreateTicketForm'
+import TicketSuccess from './components/TicketSuccess'
 
 function App() {
   const [showForm, setShowForm] = useState(false)
@@ -12,26 +12,32 @@ function App() {
     setCreatedTicket(ticket)
   }
 
-  // Show success page after ticket is created
   if (createdTicket) {
     return <TicketSuccess ticket={createdTicket} />
   }
 
   return (
-    <div>
-      <h1>Cloudnaut Support Desk</h1>
+    <div className="app">
 
-      <p>Manage and track support tickets.</p>
+      <div className="header">
+        <h1>Cloudnaut Support Desk</h1>
+        <p>Manage and track support tickets.</p>
+      </div>
 
       {!showForm && (
-        <button onClick={() => setShowForm(true)}>
-          Create Ticket
-        </button>
+        <div className="card">
+          <button onClick={() => setShowForm(true)}>
+            Create Ticket
+          </button>
+        </div>
       )}
 
       {showForm && (
-        <CreateTicketForm onSuccess={handleTicketSuccess} />
+        <div className="card">
+          <CreateTicketForm onSuccess={handleTicketSuccess} />
+        </div>
       )}
+
     </div>
   )
 }

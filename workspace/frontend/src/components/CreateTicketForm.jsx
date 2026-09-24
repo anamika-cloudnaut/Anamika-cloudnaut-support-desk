@@ -78,15 +78,17 @@ console.log('JSON PAYLOAD:', JSON.stringify(payload))
     <div>
       <h2>Create Ticket</h2>
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="ticket-form">
 
-        <input
-          name="title"
-          placeholder="Title"
-          value={formData.title}
-          onChange={handleChange}
-          required
-        />
+        <label>Title</label>
+
+<input
+  name="title"
+  placeholder="Enter ticket title"
+  value={formData.title}
+  onChange={handleChange}
+  required
+/>
 
         <br />
 
@@ -167,11 +169,11 @@ console.log('JSON PAYLOAD:', JSON.stringify(payload))
 
       </form>
 
-      {error && (
-        <p style={{ color: 'red' }}>
-          {error}
-        </p>
-      )}
+     {error && (
+  <p className="error">
+    {error}
+  </p>
+)}
     </div>
   )
 }
