@@ -25,13 +25,8 @@ def upgrade():
             sa.ForeignKey("support_requests.id", ondelete="CASCADE"),
             nullable=False,
         ),
-        sa.Column(
-            "author_id",
-            sa.Integer(),
-            sa.ForeignKey("team_members.id"),
-            nullable=True,
-        ),
-        sa.Column("body", sa.Text(), nullable=False),
+        sa.Column("note", sa.Text(), nullable=False),
+        sa.Column("created_by", sa.String(length=100), nullable=True),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),

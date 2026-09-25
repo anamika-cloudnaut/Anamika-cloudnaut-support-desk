@@ -15,10 +15,10 @@ class HistoryService:
     def list(self, request_id: int):
         return self.repository.list_history(request_id)
 
-    def add_note(self, request_id: int, body: str, author_id: Optional[int] = None):
-        if not body or not body.strip():
-            raise ValueError("Note body cannot be empty.")
-        return self.repository.add_note(request_id, body.strip(), author_id)
+    def add_note(self, request_id: int, note: str, created_by: Optional[str] = None):
+        if not note or not note.strip():
+            raise ValueError("Note cannot be empty.")
+        return self.repository.add_note(request_id, note.strip(), created_by)
 
     def list_notes(self, request_id: int):
         return self.repository.list_notes(request_id)

@@ -135,8 +135,12 @@ class RequestRepository:
             .all()
         )
 
-    def add_note(self, request_id: int, body: str, author_id: Optional[int] = None):
-        note = TicketNote(request_id=request_id, body=body, author_id=author_id)
+    def add_note(self, request_id: int, note_text: str, created_by: Optional[str] = None):
+        note = TicketNote(
+            request_id=request_id,
+            note=note_text,
+            created_by=created_by,
+        )
         self.db.add(note)
         self.db.commit()
         self.db.refresh(note)
