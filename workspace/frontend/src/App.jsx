@@ -1,10 +1,16 @@
 import { useState } from 'react'
 import CreateTicketForm from './components/CreateTicketForm'
 import TicketSuccess from './components/TicketSuccess'
+import TicketList from './components/TicketList'
+import TicketDetail from './components/TicketDetail'
+import Dashboard from './components/Dashboard'
 import './App.css'
 
 function App() {
   const [showForm, setShowForm] = useState(false)
+  const [showList, setShowList] = useState(false)
+  const [showDashboard, setShowDashboard] = useState(false)
+  const [selectedTicketId, setSelectedTicketId] = useState(null)
   const [createdTicket, setCreatedTicket] = useState(null)
 
   const handleTicketSuccess = (ticket) => {
@@ -17,6 +23,13 @@ function App() {
     setShowForm(false)
   }
 
+  const goHome = () => {
+    setShowForm(false)
+    setShowList(false)
+    setShowDashboard(false)
+    setSelectedTicketId(null)
+  }
+
   if (createdTicket) {
     return (
       <div className="app-shell">
@@ -27,6 +40,8 @@ function App() {
       </div>
     )
   }
+
+  const showingWelcome = !showForm && !showList && !showDashboard && !selectedTicketId
 
   return (
     <div className="app-shell">
@@ -54,7 +69,7 @@ function App() {
 
         </header>
 
-        {!showForm && (
+        {showingWelcome && (
           <section className="welcome-card">
 
             <div className="welcome-icon">
@@ -77,6 +92,24 @@ function App() {
               onClick={() => setShowForm(true)}
             >
               <span>Create Support Ticket</span>
+              <span className="button-arrow">→</span>
+            </button>
+
+            <button
+              className="primary-button"
+              onClick={() => setShowList(true)}
+              style={{ marginTop: '12px' }}
+            >
+              <span>View All Tickets</span>
+              <span className="button-arrow">→</span>
+            </button>
+
+            <button
+              className="primary-button"
+              onClick={() => setShowDashboard(true)}
+              style={{ marginTop: '12px' }}
+            >
+              <span>View Dashboard</span>
               <span className="button-arrow">→</span>
             </button>
 
@@ -150,6 +183,96 @@ function App() {
             <CreateTicketForm
               onSuccess={handleTicketSuccess}
             />
+
+          </section>
+        )}
+
+        {showList && !selectedTicketId && (
+          <section className="ticket-form-card">
+
+            <div className="form-header">
+
+              <div>
+                <span className="section-label">
+                  ALL REQUESTS
+                </span>
+
+                <h2>Support Requests</h2>
+
+                <p>
+                  View, filter and sort all submitted tickets. Click a row for details.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="close-button"
+                onClick={goHome}
+              >
+                ×
+              </button>
+
+            </div>
+
+            <div className="form-divider"></div>
+
+            <TicketList
+              onSelectTicket={(ticket) => setSelectedTicketId(ticket.id)}
+            />
+
+          </section>
+        )}
+
+        {selectedTicketId && (
+          <section className="ticket-form-card">
+
+            <div className="form-header">
+              <div>
+                <span className="section-label">TICKET DETAIL</span>
+              </div>
+              <button
+                type="button"
+                className="close-button"
+                onClick={goHome}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="form-divider"></div>
+
+            <TicketDetail
+              ticketId={selectedTicketId}
+              onBack={() => setSelectedTicketId(null)}
+            />
+
+          </section>
+        )}
+
+        {showDashboard && (
+          <section className="ticket-form-card">
+
+            <div className="form-header">
+
+              <div>
+                <span className="section-label">OVERVIEW</span>
+                <h2>Dashboard</h2>
+                <p>Summary of all support requests.</p>
+              </div>
+
+              <button
+                type="button"
+                className="close-button"
+                onClick={goHome}
+              >
+                ×
+              </button>
+
+            </div>
+
+            <div className="form-divider"></div>
+
+            <Dashboard />
 
           </section>
         )}
