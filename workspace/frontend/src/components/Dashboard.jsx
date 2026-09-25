@@ -38,9 +38,8 @@ function Dashboard() {
 
   if (!summary) return null
 
-  // CHECK: this assumes summary.by_status is an object like { Open: 4, "In Progress": 2, ... }
-  // and summary.total is a number. Adjust keys below once you confirm the real shape in Swagger.
   const statusEntries = Object.entries(summary.by_status || {})
+  const assigneeEntries = Object.entries(summary.by_assignee || {})
 
   return (
     <div className="dashboard-container">
@@ -49,7 +48,23 @@ function Dashboard() {
           <div className="feature-icon">📊</div>
           <div>
             <h3>Total Requests</h3>
-            <p>{summary.total ?? '-'}</p>
+            <p>{summary.total}</p>
+          </div>
+        </div>
+
+        <div className="feature-item">
+          <div className="feature-icon">👤</div>
+          <div>
+            <h3>Assigned</h3>
+            <p>{summary.assigned}</p>
+          </div>
+        </div>
+
+        <div className="feature-item">
+          <div className="feature-icon">🕓</div>
+          <div>
+            <h3>Unassigned</h3>
+            <p>{summary.unassigned}</p>
           </div>
         </div>
 
@@ -63,6 +78,21 @@ function Dashboard() {
           </div>
         ))}
       </div>
+
+      {assigneeEntries.length > 0 && (
+        <>
+          <div className="form-divider"></div>
+          <h3>By Assignee</h3>
+          <ul className="history-list">
+            {assigneeEntries.map(([name, count]) => (
+              <li key={name}>
+                <span>{name}</span>
+                <span>{count}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
     </div>
   )
 }

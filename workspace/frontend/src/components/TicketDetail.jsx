@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 
 // Allowed next statuses per the sprint brief's transition table.
-// CHECK: confirm these status strings exactly match what your API returns.
 const STATUS_TRANSITIONS = {
   Open: ['In Progress'],
   'In Progress': ['Blocked', 'Resolved'],
@@ -19,6 +18,7 @@ function TicketDetail({ ticketId, onBack }) {
   const [error, setError] = useState('')
 
   const [newNote, setNewNote] = useState('')
+  const [noteAuthor, setNoteAuthor] = useState('')
   const [noteSubmitting, setNoteSubmitting] = useState(false)
   const [noteError, setNoteError] = useState('')
 
@@ -50,8 +50,9 @@ function TicketDetail({ ticketId, onBack }) {
       setTicket(ticketData)
       setTeamMembers(Array.isArray(membersData) ? membersData : membersData.results || [])
       setHistory(Array.isArray(historyData) ? historyData : historyData.results || [])
-      // CHECK: if your ticket response already includes its notes array,
-      // you can pull setNotes(ticketData.notes || []) here instead of a separate call.
+      // No separate GET notes endpoint in the brief's API list — notes come from
+      // whatever the ticket response embeds. If this stays empty, the API may need
+      // a notes array added to GET /requests/{id}, or a dedicated GET notes route.
       setNotes(ticketData.notes || [])
     } catch (fetchError) {
       console.error('Request failed:', fetchError)
@@ -62,7 +63,9 @@ function TicketDetail({ ticketId, onBack }) {
   }
 
   const handleAssign = async (event) => {
-    const assignedTo = event.target.value
+    const value = event.target.value
+    const assignedTo = value === '' ? null : parseInt(value, 10)
+
     setAssignSubmitting(true)
     setActionError('')
 
@@ -70,7 +73,7 @@ function TicketDetail({ ticketId, onBack }) {
       const response = await fetch(`http://localhost:4000/requests/${ticketId}/assignment`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assigned_to: assignedTo || null }),
+        body: JSON.stringify({ assigned_to: assignedTo }),
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.detail || 'Failed to assign ticket')
@@ -111,8 +114,13 @@ function TicketDetail({ ticketId, onBack }) {
 
   const handleAddNote = async (event) => {
     event.preventDefault()
+
     if (!newNote.trim()) {
       setNoteError('Note cannot be empty.')
+      return
+    }
+    if (!noteAuthor.trim()) {
+      setNoteError('Please enter your name.')
       return
     }
 
@@ -123,11 +131,12 @@ function TicketDetail({ ticketId, onBack }) {
       const response = await fetch(`http://localhost:4000/requests/${ticketId}/notes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: newNote }),
+        body: JSON.stringify({ note: newNote, created_by: noteAuthor }),
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.detail || 'Failed to add note')
       setNewNote('')
+      setNotes((prev) => [...prev, data])
       loadAll()
     } catch (noteErr) {
       console.error('Add note failed:', noteErr)
@@ -151,6 +160,7 @@ function TicketDetail({ ticketId, onBack }) {
   if (!ticket) return null
 
   const nextStatuses = STATUS_TRANSITIONS[ticket.status] || []
+  const assignedMember = teamMembers.find((m) => m.id === ticket.assigned_to)
 
   return (
     <div className="ticket-detail-container">
@@ -165,6 +175,7 @@ function TicketDetail({ ticketId, onBack }) {
         <div><strong>Category:</strong> {ticket.category}</div>
         <div><strong>Priority:</strong> {ticket.priority}</div>
         <div><strong>Status:</strong> {ticket.status}</div>
+        <div><strong>Assigned to:</strong> {assignedMember ? assignedMember.name : 'Unassigned'}</div>
         <div><strong>Due date:</strong> {ticket.due_date || 'None set'}</div>
         <div><strong>Created:</strong> {ticket.created_at ? new Date(ticket.created_at).toLocaleString() : '-'}</div>
       </div>
@@ -181,14 +192,14 @@ function TicketDetail({ ticketId, onBack }) {
           <label htmlFor="assign">Assign to</label>
           <select
             id="assign"
-            value={ticket.assigned_to || ''}
+            value={ticket.assigned_to ?? ''}
             onChange={handleAssign}
             disabled={assignSubmitting}
           >
             <option value="">Unassigned</option>
             {teamMembers.map((member) => (
-              <option key={member.id} value={member.name || member.id}>
-                {member.name || member.id}
+              <option key={member.id} value={member.id}>
+                {member.name}
               </option>
             ))}
           </select>
@@ -218,6 +229,16 @@ function TicketDetail({ ticketId, onBack }) {
 
       <form onSubmit={handleAddNote} className="ticket-form">
         <div className="form-group">
+          <label htmlFor="noteAuthor">Your name</label>
+          <input
+            id="noteAuthor"
+            type="text"
+            placeholder="Your name"
+            value={noteAuthor}
+            onChange={(e) => setNoteAuthor(e.target.value)}
+          />
+        </div>
+        <div className="form-group">
           <textarea
             placeholder="Add a progress note..."
             value={newNote}
@@ -239,7 +260,7 @@ function TicketDetail({ ticketId, onBack }) {
         {notes.length === 0 && <li>No notes yet.</li>}
         {notes.map((note) => (
           <li key={note.id}>
-            <span>{note.content}</span>
+            <span>{note.note} — <em>{note.created_by}</em></span>
             <span className="note-timestamp">
               {note.created_at ? new Date(note.created_at).toLocaleString() : ''}
             </span>
@@ -253,9 +274,9 @@ function TicketDetail({ ticketId, onBack }) {
 
       <ul className="history-list">
         {history.length === 0 && <li>No activity recorded yet.</li>}
-        {history.map((event, index) => (
-          <li key={event.id || index}>
-            <span>{event.description || event.change || JSON.stringify(event)}</span>
+        {history.map((event) => (
+          <li key={event.id}>
+            <span>{event.description}</span>
             <span className="note-timestamp">
               {event.created_at ? new Date(event.created_at).toLocaleString() : ''}
             </span>
