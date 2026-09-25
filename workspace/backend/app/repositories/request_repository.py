@@ -9,6 +9,23 @@ class RequestRepository:
     def __init__(self, db: Session):
         self.db = db
 
+    @staticmethod
+    def _request_to_dict(request: SupportRequest) -> Dict[str, Any]:
+        return {
+            "id": request.id,
+            "title": request.title,
+            "description": request.description,
+            "requester_name": request.requester_name,
+            "requester_email": request.requester_email,
+            "category": request.category,
+            "priority": request.priority,
+            "status": request.status,
+            "assigned_to": request.assigned_to,
+            "due_date": request.due_date.isoformat() if request.due_date else None,
+            "created_at": request.created_at.isoformat() if request.created_at else None,
+            "updated_at": request.updated_at.isoformat() if request.updated_at else None,
+        }
+
     def create_request(self, request_data: Union[Dict[str, Any], Any]) -> Dict[str, Any]:
         """
         Creates a SupportRequest in PostgreSQL and returns a fully populated dict
@@ -65,7 +82,7 @@ class RequestRepository:
             setattr(request, field, value)
         self.db.commit()
         self.db.refresh(request)
-        return request
+        return self._request_to_dict(request)
 
     def list_team_members(self, active_only: bool = False):
         query = self.db.query(TeamMember)
@@ -108,26 +125,13 @@ class RequestRepository:
         request.assignee = assignee
         self.db.commit()
         self.db.refresh(request)
-        return request
+        return self._request_to_dict(request)
 
     def update_status(self, request: SupportRequest, new_status: str):
         request.status = new_status
         self.db.commit()
         self.db.refresh(request)
-        return {
-            "id": request.id,
-            "title": request.title,
-            "description": request.description,
-            "requester_name": request.requester_name,
-            "requester_email": request.requester_email,
-            "category": request.category,
-            "priority": request.priority,
-            "status": request.status,
-            "assigned_to": request.assigned_to,
-            "due_date": request.due_date.isoformat() if request.due_date else None,
-            "created_at": request.created_at.isoformat() if request.created_at else None,
-            "updated_at": request.updated_at.isoformat() if request.updated_at else None,
-        }
+        return self._request_to_dict(request)
 
     def add_history_event(self, request_id: int, event_type: str, description: str):
         event = HistoryEvent(

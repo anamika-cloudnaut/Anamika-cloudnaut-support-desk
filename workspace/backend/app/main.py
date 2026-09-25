@@ -139,8 +139,8 @@ def assign_internal_request(
             request_id,
             "assignment",
             "Request unassigned"
-            if result.assigned_to is None
-            else f"Request assigned to team member {result.assigned_to}",
+            if result["assigned_to"] is None
+            else f"Request assigned to team member {result['assigned_to']}",
         )
         return result
     except LookupError as err:
