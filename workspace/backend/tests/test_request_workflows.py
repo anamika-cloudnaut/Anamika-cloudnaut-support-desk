@@ -53,6 +53,32 @@ def test_status_transition_rejects_invalid_change():
         service.transition_status(1, "Resolved")
 
 
+def test_status_transition_returns_updated_ticket_fields():
+    class StatusRepository(FakeRepository):
+        def update_status(self, request, new_status):
+            request.status = new_status
+            return {
+                "id": request.id,
+                "title": "VPN Issue",
+                "description": "Unable to connect",
+                "requester_name": "Alex",
+                "requester_email": "alex@example.com",
+                "category": "Access",
+                "priority": "High",
+                "status": request.status,
+                "assigned_to": request.assigned_to,
+                "due_date": None,
+                "created_at": "2026-09-25T10:00:00",
+                "updated_at": "2026-09-25T10:05:00",
+            }
+
+    result = RequestService(StatusRepository()).transition_status(1, "In Progress")
+
+    assert result["id"] == 1
+    assert result["status"] == "In Progress"
+    assert result["created_at"] is not None
+
+
 def test_list_requests_has_safe_default_sorting():
     result = RequestService(FakeRepository()).list_requests(status="Open")
 
