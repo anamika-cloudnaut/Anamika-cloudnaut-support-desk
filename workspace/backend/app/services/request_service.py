@@ -1,4 +1,5 @@
 from typing import Optional, Dict, Any, Union
+from .status_service import validate_status_transition
 
 
 class RequestService:
@@ -46,3 +47,68 @@ class RequestService:
             raise ValueError("Request ID must be a positive integer.")
 
         return self.repository.get_request_by_id(request_id)
+
+    def update_request(self, request_id: int, fields: Dict[str, Any]):
+        if not fields:
+            raise ValueError("At least one editable field is required.")
+        request = self._get_request(request_id)
+        editable_fields = {
+            "title",
+            "description",
+            "requester_name",
+            "requester_email",
+            "category",
+            "priority",
+            "due_date",
+        }
+        unsupported = set(fields) - editable_fields
+        if unsupported:
+            raise ValueError(
+                f"Unsupported request fields: {', '.join(sorted(unsupported))}."
+            )
+        if "title" in fields and not str(fields["title"]).strip():
+            raise ValueError("Title cannot be empty.")
+        if "description" in fields and not str(fields["description"]).strip():
+            raise ValueError("Description cannot be empty.")
+        if "requester_email" in fields and (
+            not fields["requester_email"] or "@" not in str(fields["requester_email"])
+        ):
+            raise ValueError("A valid requester_email is required.")
+        return self.repository.update_request(request, fields)
+
+    def list_team_members(self, active_only: bool = False):
+        return self.repository.list_team_members(active_only)
+
+    def assign_request(self, request_id: int, assignee_id: Optional[int]):
+        request = self._get_request(request_id)
+        assignee = None
+        if assignee_id is not None:
+            assignee = self.repository.get_team_member(assignee_id)
+            if not assignee:
+                raise ValueError("Assigned team member was not found.")
+            if not assignee.is_active:
+                raise ValueError("Cannot assign a request to an inactive team member.")
+        return self.repository.assign_request(request, assignee)
+
+    def transition_status(self, request_id: int, new_status: str):
+        request = self._get_request(request_id)
+        validate_status_transition(request.status, new_status)
+        return self.repository.update_status(request, new_status)
+
+    def list_requests(self, **filters):
+        filters.setdefault("sort_by", "created_at")
+        filters.setdefault("sort_order", "desc")
+        allowed = {"created_at", "updated_at", "priority", "status", "title"}
+        if filters.get("sort_by") not in allowed:
+            raise ValueError("Invalid sort field.")
+        if filters.get("sort_order") not in {"asc", "desc"}:
+            raise ValueError("Sort order must be 'asc' or 'desc'.")
+        return self.repository.list_requests(**filters)
+
+    def _get_request(self, request_id: int):
+        if request_id <= 0:
+            raise ValueError("Request ID must be a positive integer.")
+        request = self.repository.get_request_by_id(request_id)
+        if not request:
+            raise LookupError(f"Request {request_id} not found.")
+        return request
