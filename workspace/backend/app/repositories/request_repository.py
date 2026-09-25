@@ -1,7 +1,8 @@
 from typing import Optional, Dict, Any, Union
 from datetime import datetime
+from sqlalchemy import func
 from sqlalchemy.orm import Session
-from database.app.models import SupportRequest
+from database.app.models import HistoryEvent, SupportRequest, TeamMember, TicketNote
 
 
 class RequestRepository:
@@ -55,3 +56,105 @@ class RequestRepository:
 
     def get_request_by_id(self, request_id: int) -> Optional[SupportRequest]:
         return self.db.query(SupportRequest).filter(SupportRequest.id == request_id).first()
+
+    def list_requests(
+        self,
+        *,
+        status: Optional[str] = None,
+        assigned_to: Optional[int] = None,
+        category: Optional[str] = None,
+        priority: Optional[str] = None,
+        sort_by: str = "created_at",
+        sort_order: str = "desc",
+    ):
+        sort_columns = {
+            "created_at": SupportRequest.created_at,
+            "updated_at": SupportRequest.updated_at,
+            "priority": SupportRequest.priority,
+            "status": SupportRequest.status,
+            "title": SupportRequest.title,
+        }
+        query = self.db.query(SupportRequest)
+        if status:
+            query = query.filter(SupportRequest.status == status)
+        if assigned_to is not None:
+            query = query.filter(SupportRequest.assigned_to == assigned_to)
+        if category:
+            query = query.filter(SupportRequest.category == category)
+        if priority:
+            query = query.filter(SupportRequest.priority == priority)
+
+        column = sort_columns[sort_by]
+        query = query.order_by(column.asc() if sort_order == "asc" else column.desc())
+        return query.all()
+
+    def assign_request(self, request: SupportRequest, assignee: Optional[TeamMember]):
+        request.assignee = assignee
+        self.db.commit()
+        self.db.refresh(request)
+        return request
+
+    def update_status(self, request: SupportRequest, new_status: str):
+        request.status = new_status
+        self.db.commit()
+        self.db.refresh(request)
+        return request
+
+    def add_history_event(self, request_id: int, event_type: str, description: str):
+        event = HistoryEvent(
+            request_id=request_id,
+            event_type=event_type,
+            description=description,
+        )
+        self.db.add(event)
+        self.db.commit()
+        self.db.refresh(event)
+        return event
+
+    def list_history(self, request_id: int):
+        return (
+            self.db.query(HistoryEvent)
+            .filter(HistoryEvent.request_id == request_id)
+            .order_by(HistoryEvent.created_at.asc(), HistoryEvent.id.asc())
+            .all()
+        )
+
+    def add_note(self, request_id: int, body: str, author_id: Optional[int] = None):
+        note = TicketNote(request_id=request_id, body=body, author_id=author_id)
+        self.db.add(note)
+        self.db.commit()
+        self.db.refresh(note)
+        return note
+
+    def list_notes(self, request_id: int):
+        return (
+            self.db.query(TicketNote)
+            .filter(TicketNote.request_id == request_id)
+            .order_by(TicketNote.created_at.asc(), TicketNote.id.asc())
+            .all()
+        )
+
+    def get_team_member(self, member_id: int) -> Optional[TeamMember]:
+        return self.db.query(TeamMember).filter(TeamMember.id == member_id).first()
+
+    def dashboard(self):
+        counts = dict(
+            self.db.query(SupportRequest.status, func.count(SupportRequest.id))
+            .group_by(SupportRequest.status)
+            .all()
+        )
+        assignee_counts = dict(
+            self.db.query(SupportRequest.assigned_to, func.count(SupportRequest.id))
+            .filter(SupportRequest.assigned_to.isnot(None))
+            .group_by(SupportRequest.assigned_to)
+            .all()
+        )
+        return {
+            "total": self.db.query(SupportRequest).count(),
+            "by_status": counts,
+            "assigned": sum(assignee_counts.values()),
+            "unassigned": self.db.query(SupportRequest)
+            .filter(SupportRequest.assigned_to.is_(None))
+            .count(),
+            "by_assignee": assignee_counts,
+        }
