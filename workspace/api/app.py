@@ -1,7 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers.requests import router as requests_router
+from routers.requests import (
+    router as requests_router,
+    team_router,
+    dashboard_router,
+)
 
 
 app = FastAPI(
@@ -14,12 +18,19 @@ app = FastAPI(
 # Allow frontend to call the API from Vite
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:5173",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+
+# ---------------------------------------------------------
+# HEALTH CHECK
+# ---------------------------------------------------------
 
 @app.get("/health", tags=["Health"])
 def health_check():
@@ -29,4 +40,10 @@ def health_check():
     }
 
 
+# ---------------------------------------------------------
+# API ROUTERS
+# ---------------------------------------------------------
+
 app.include_router(requests_router)
+app.include_router(team_router)
+app.include_router(dashboard_router)
