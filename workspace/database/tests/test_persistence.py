@@ -56,22 +56,52 @@ def test_request_assignment_relationship(db_session):
     assert saved_req.assignee.name == "Vikram Seth"
 
 
-def test_ticket_note_relationship(db_session):
-    req = SupportRequest(
-        title="Cannot access dashboard",
-        description="Dashboard returns an error",
-        requester_name="Support",
-        requester_email="support@cloudnaut.com",
-        category="Application",
+def create_ticket_for_note_test(db_session):
+    request = SupportRequest(
+        title="VPN Issue",
+        description="Unable to access the internal network",
+        requester_name="Alex",
+        requester_email="alex@example.com",
+        category="Access",
         priority="High",
     )
-    db_session.add(req)
+    db_session.add(request)
     db_session.commit()
+    return request
 
-    note = TicketNote(request_id=req.id, body="Investigating the dashboard error")
+
+def test_create_ticket_note(db_session):
+    request = create_ticket_for_note_test(db_session)
+    note = TicketNote(
+        request_id=request.id,
+        note="Checked VPN configuration and started investigation",
+        created_by="Rahul Verma",
+    )
     db_session.add(note)
     db_session.commit()
 
-    saved = db_session.query(TicketNote).filter_by(request_id=req.id).one()
-    assert saved.request.title == "Cannot access dashboard"
-    assert saved.body == "Investigating the dashboard error"
+    saved = db_session.query(TicketNote).filter_by(request_id=request.id).one()
+    assert saved.note == "Checked VPN configuration and started investigation"
+    assert saved.created_by == "Rahul Verma"
+
+
+def test_ticket_note_relationship(db_session):
+    request = create_ticket_for_note_test(db_session)
+    request.notes.append(TicketNote(note="Initial investigation", created_by="Rahul Verma"))
+    db_session.commit()
+
+    saved_request = db_session.query(SupportRequest).filter_by(id=request.id).one()
+    assert len(saved_request.notes) == 1
+    assert saved_request.notes[0].note == "Initial investigation"
+
+
+def test_ticket_note_cascade_delete(db_session):
+    request = create_ticket_for_note_test(db_session)
+    request.notes.append(TicketNote(note="Initial investigation"))
+    db_session.commit()
+    request_id = request.id
+
+    db_session.delete(request)
+    db_session.commit()
+
+    assert db_session.query(TicketNote).filter_by(request_id=request_id).count() == 0

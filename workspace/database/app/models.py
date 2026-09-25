@@ -66,11 +66,12 @@ class TicketNote(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     request_id = Column(
-        Integer, ForeignKey("support_requests.id", ondelete="CASCADE"), nullable=False
+        Integer,
+        ForeignKey("support_requests.id", ondelete="CASCADE"),
+        nullable=False,
     )
-    author_id = Column(Integer, ForeignKey("team_members.id"), nullable=True)
-    body = Column(Text, nullable=False)
+    note = Column(Text, nullable=False)
+    created_by = Column(String(100), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     request = relationship("SupportRequest", back_populates="notes")
-    author = relationship("TeamMember")

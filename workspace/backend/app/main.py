@@ -202,7 +202,7 @@ def add_request_note(
         repository = RequestRepository(db)
         RequestService(repository)._get_request(request_id)
         note = HistoryService(repository).add_note(
-            request_id, payload.get("body", ""), payload.get("author_id")
+            request_id, payload.get("note", ""), payload.get("created_by")
         )
         repository.add_history_event(request_id, "note", "Internal note added")
         return note
