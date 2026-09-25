@@ -144,7 +144,13 @@ class RequestRepository:
         self.db.add(note)
         self.db.commit()
         self.db.refresh(note)
-        return note
+        return {
+            "id": note.id,
+            "request_id": note.request_id,
+            "note": note.note,
+            "created_by": note.created_by,
+            "created_at": note.created_at.isoformat() if note.created_at else None,
+        }
 
     def list_notes(self, request_id: int):
         return (
