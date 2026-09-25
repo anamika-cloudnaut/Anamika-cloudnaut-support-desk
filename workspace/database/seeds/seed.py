@@ -3,12 +3,11 @@ import os
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
 
-from database.app.database import SessionLocal, init_db
-from database.app.models import TeamMember, SupportRequest, HistoryEvent
+from database.app.database import SessionLocal
+from database.app.models import TeamMember, SupportRequest, HistoryEvent, TicketNote
 
 
 def seed_database():
-    init_db()
     db = SessionLocal()
 
     try:
@@ -21,7 +20,8 @@ def seed_database():
             db.commit()
             print("Successfully seeded team members.")
 
-        if db.query(SupportRequest).count() == 0:
+        req = db.query(SupportRequest).filter_by(title="VPN Issue").first()
+        if not req:
             req = SupportRequest(
                 title="VPN Issue",
                 description="Unable to access internal dev environment",
@@ -43,6 +43,21 @@ def seed_database():
             db.add(event)
             db.commit()
             print(f"Successfully seeded sample request ID: {req.id}")
+
+        sample_note = db.query(TicketNote).filter_by(
+            request_id=req.id,
+            note="Initial investigation started",
+            created_by="Admin",
+        ).first()
+        if not sample_note:
+            note = TicketNote(
+                request_id=req.id,
+                note="Initial investigation started",
+                created_by="Admin",
+            )
+            db.add(note)
+            db.commit()
+            print(f"Successfully seeded note for request ID: {req.id}")
 
     except Exception as e:
         db.rollback()
