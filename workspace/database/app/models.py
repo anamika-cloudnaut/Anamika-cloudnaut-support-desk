@@ -41,6 +41,9 @@ class SupportRequest(Base):
     history_events = relationship(
         "HistoryEvent", back_populates="request", cascade="all, delete-orphan"
     )
+    notes = relationship(
+        "TicketNote", back_populates="request", cascade="all, delete-orphan"
+    )
 
 
 class HistoryEvent(Base):
@@ -56,3 +59,18 @@ class HistoryEvent(Base):
 
     # Relationships
     request = relationship("SupportRequest", back_populates="history_events")
+
+
+class TicketNote(Base):
+    __tablename__ = "ticket_notes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    request_id = Column(
+        Integer, ForeignKey("support_requests.id", ondelete="CASCADE"), nullable=False
+    )
+    author_id = Column(Integer, ForeignKey("team_members.id"), nullable=True)
+    body = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    request = relationship("SupportRequest", back_populates="notes")
+    author = relationship("TeamMember")
