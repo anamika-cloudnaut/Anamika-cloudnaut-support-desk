@@ -51,3 +51,40 @@ def get_internal_request(request_id: int, db: Session = Depends(get_db)):
             detail=f"Request {request_id} not found",
         )
     return req
+
+
+@app.patch("/internal/requests/{request_id}", status_code=status.HTTP_200_OK)
+def update_internal_request(
+    request_id: int,
+    payload: Dict[str, Any],
+    db: Session = Depends(get_db),
+):
+    from app.repositories.request_repository import RequestRepository
+    from app.services.request_service import RequestService
+
+    try:
+        repository = RequestRepository(db)
+        return RequestService(repository).update_request(request_id, payload)
+    except LookupError as err:
+        raise HTTPException(status_code=404, detail=str(err)) from err
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail=str(err)) from err
+
+
+@app.get("/internal/team-members", status_code=status.HTTP_200_OK)
+def list_internal_team_members(
+    active_only: bool = False,
+    db: Session = Depends(get_db),
+):
+    from app.repositories.request_repository import RequestRepository
+    from app.services.request_service import RequestService
+
+    return [
+        {
+            "id": member.id,
+            "name": member.name,
+            "email": member.email,
+            "is_active": member.is_active,
+        }
+        for member in RequestService(RequestRepository(db)).list_team_members(active_only)
+    ]

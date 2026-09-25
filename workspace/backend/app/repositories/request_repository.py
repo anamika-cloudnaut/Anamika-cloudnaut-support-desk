@@ -1,7 +1,7 @@
 from typing import Optional, Dict, Any, Union
 from datetime import datetime
 from sqlalchemy.orm import Session
-from database.app.models import SupportRequest
+from database.app.models import SupportRequest, TeamMember
 
 
 class RequestRepository:
@@ -55,3 +55,19 @@ class RequestRepository:
 
     def get_request_by_id(self, request_id: int) -> Optional[SupportRequest]:
         return self.db.query(SupportRequest).filter(SupportRequest.id == request_id).first()
+
+    def update_request(self, request: SupportRequest, fields: Dict[str, Any]):
+        if isinstance(fields.get("due_date"), str):
+            fields = dict(fields)
+            fields["due_date"] = datetime.fromisoformat(fields["due_date"])
+        for field, value in fields.items():
+            setattr(request, field, value)
+        self.db.commit()
+        self.db.refresh(request)
+        return request
+
+    def list_team_members(self, active_only: bool = False):
+        query = self.db.query(TeamMember)
+        if active_only:
+            query = query.filter(TeamMember.is_active.is_(True))
+        return query.order_by(TeamMember.name.asc()).all()

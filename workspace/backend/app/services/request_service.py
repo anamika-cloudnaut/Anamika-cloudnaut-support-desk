@@ -46,3 +46,42 @@ class RequestService:
             raise ValueError("Request ID must be a positive integer.")
 
         return self.repository.get_request_by_id(request_id)
+
+    def update_request(self, request_id: int, fields: Dict[str, Any]):
+        if not fields:
+            raise ValueError("At least one editable field is required.")
+        request = self._get_request(request_id)
+        editable_fields = {
+            "title",
+            "description",
+            "requester_name",
+            "requester_email",
+            "category",
+            "priority",
+            "due_date",
+        }
+        unsupported = set(fields) - editable_fields
+        if unsupported:
+            raise ValueError(
+                f"Unsupported request fields: {', '.join(sorted(unsupported))}."
+            )
+        if "title" in fields and not str(fields["title"]).strip():
+            raise ValueError("Title cannot be empty.")
+        if "description" in fields and not str(fields["description"]).strip():
+            raise ValueError("Description cannot be empty.")
+        if "requester_email" in fields and (
+            not fields["requester_email"] or "@" not in str(fields["requester_email"])
+        ):
+            raise ValueError("A valid requester_email is required.")
+        return self.repository.update_request(request, fields)
+
+    def list_team_members(self, active_only: bool = False):
+        return self.repository.list_team_members(active_only)
+
+    def _get_request(self, request_id: int):
+        if request_id <= 0:
+            raise ValueError("Request ID must be a positive integer.")
+        request = self.repository.get_request_by_id(request_id)
+        if not request:
+            raise LookupError(f"Request {request_id} not found.")
+        return request
