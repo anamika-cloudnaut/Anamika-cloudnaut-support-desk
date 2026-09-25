@@ -29,6 +29,18 @@ class TicketCreate(BaseModel):
     due_date: date | None = None
 
 
+class TicketUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    description: str | None = Field(default=None, min_length=1, max_length=5000)
+    requester_name: str | None = Field(default=None, min_length=1, max_length=100)
+    requester_email: EmailStr | None = None
+    category: Category | None = None
+    priority: Priority | None = None
+    due_date: date | None = None
+
+
 class TicketResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
