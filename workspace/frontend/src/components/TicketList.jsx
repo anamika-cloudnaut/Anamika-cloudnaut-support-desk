@@ -15,11 +15,7 @@ function TicketList({ onSelectTicket }) {
   const [sortBy, setSortBy] = useState('created_at')
   const [sortDir, setSortDir] = useState('desc')
 
-  useEffect(() => {
-    fetchTickets()
-  }, [])
-
-  const fetchTickets = async () => {
+  async function fetchTickets() {
     setLoading(true)
     setError('')
 
@@ -41,6 +37,10 @@ function TicketList({ onSelectTicket }) {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    fetchTickets()
+  }, [])
 
   const visibleTickets = useMemo(() => {
     let result = [...tickets]
@@ -135,7 +135,8 @@ function TicketList({ onSelectTicket }) {
       )}
 
       {!loading && !error && visibleTickets.length > 0 && (
-        <table className="ticket-table">
+        <div className="ticket-table-wrapper">
+          <table className="ticket-table">
           <thead>
             <tr>
               <th onClick={() => toggleSort('id')}>ID{sortArrow('id')}</th>
@@ -168,7 +169,8 @@ function TicketList({ onSelectTicket }) {
               </tr>
             ))}
           </tbody>
-        </table>
+          </table>
+        </div>
       )}
 
     </div>

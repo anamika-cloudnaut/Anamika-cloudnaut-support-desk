@@ -87,31 +87,31 @@ function App() {
               the details our team needs to investigate your issue.
             </p>
 
-            <button
-              className="primary-button"
-              onClick={() => setShowForm(true)}
-            >
-              <span>Create Support Ticket</span>
-              <span className="button-arrow">→</span>
-            </button>
+            <div className="welcome-actions">
+              <button
+                className="primary-button"
+                onClick={() => setShowForm(true)}
+              >
+                <span>Create Support Ticket</span>
+                <span className="button-arrow">→</span>
+              </button>
 
-            <button
-              className="primary-button"
-              onClick={() => setShowList(true)}
-              style={{ marginTop: '12px' }}
-            >
-              <span>View All Tickets</span>
-              <span className="button-arrow">→</span>
-            </button>
+              <button
+                className="secondary-button"
+                onClick={() => setShowList(true)}
+              >
+                <span>View All Tickets</span>
+                <span className="button-arrow">→</span>
+              </button>
 
-            <button
-              className="primary-button"
-              onClick={() => setShowDashboard(true)}
-              style={{ marginTop: '12px' }}
-            >
-              <span>View Dashboard</span>
-              <span className="button-arrow">→</span>
-            </button>
+              <button
+                className="secondary-button"
+                onClick={() => setShowDashboard(true)}
+              >
+                <span>View Dashboard</span>
+                <span className="button-arrow">→</span>
+              </button>
+            </div>
 
             <div className="feature-grid">
 
