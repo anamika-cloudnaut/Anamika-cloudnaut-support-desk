@@ -16,11 +16,7 @@ function TicketList({ onSelectTicket }) {
   const [sortBy, setSortBy] = useState('created_at')
   const [sortDir, setSortDir] = useState('desc')
 
-  useEffect(() => {
-    fetchTickets()
-  }, [])
-
-  const fetchTickets = async () => {
+  async function fetchTickets() {
     setLoading(true)
     setError('')
 
@@ -42,6 +38,10 @@ function TicketList({ onSelectTicket }) {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    fetchTickets()
+  }, [])
 
   const visibleTickets = useMemo(() => {
     let result = [...tickets]
@@ -136,40 +136,40 @@ function TicketList({ onSelectTicket }) {
       )}
 
       {!loading && !error && visibleTickets.length > 0 && (
-        <div className="ticket-table-wrap">
+        <div className="ticket-table-wrapper">
           <table className="ticket-table">
-            <thead>
-              <tr>
-                <th onClick={() => toggleSort('id')}>ID{sortArrow('id')}</th>
-                <th onClick={() => toggleSort('title')}>Title{sortArrow('title')}</th>
-                <th onClick={() => toggleSort('category')}>Category{sortArrow('category')}</th>
-                <th onClick={() => toggleSort('priority')}>Priority{sortArrow('priority')}</th>
-                <th onClick={() => toggleSort('status')}>Status{sortArrow('status')}</th>
-                <th>Assigned To</th>
-                <th onClick={() => toggleSort('created_at')}>Created{sortArrow('created_at')}</th>
+          <thead>
+            <tr>
+              <th onClick={() => toggleSort('id')}>ID{sortArrow('id')}</th>
+              <th onClick={() => toggleSort('title')}>Title{sortArrow('title')}</th>
+              <th onClick={() => toggleSort('category')}>Category{sortArrow('category')}</th>
+              <th onClick={() => toggleSort('priority')}>Priority{sortArrow('priority')}</th>
+              <th onClick={() => toggleSort('status')}>Status{sortArrow('status')}</th>
+              <th>Assigned To</th>
+              <th onClick={() => toggleSort('created_at')}>Created{sortArrow('created_at')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visibleTickets.map((ticket) => (
+              <tr key={ticket.id} onClick={() => onSelectTicket && onSelectTicket(ticket)}>
+                <td>{ticket.id}</td>
+                <td>{ticket.title}</td>
+                <td>{ticket.category}</td>
+                <td>
+                  <span className={`badge badge-priority-${ticket.priority?.toLowerCase()}`}>
+                    {ticket.priority}
+                  </span>
+                </td>
+                <td>
+                  <span className={`badge badge-status-${ticket.status?.toLowerCase().replace(' ', '-')}`}>
+                    {ticket.status}
+                  </span>
+                </td>
+                <td>{ticket.assigned_to || 'Unassigned'}</td>
+                <td>{ticket.created_at ? new Date(ticket.created_at).toLocaleDateString() : '-'}</td>
               </tr>
-            </thead>
-            <tbody>
-              {visibleTickets.map((ticket) => (
-                <tr key={ticket.id} onClick={() => onSelectTicket && onSelectTicket(ticket)}>
-                  <td className="ticket-id-cell">#{ticket.id}</td>
-                  <td className="ticket-title-cell">{ticket.title}</td>
-                  <td>{ticket.category}</td>
-                  <td>
-                    <span className={`badge badge-priority-${ticket.priority?.toLowerCase()}`}>
-                      {ticket.priority}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={`badge badge-status-${ticket.status?.toLowerCase().replace(' ', '-')}`}>
-                      {ticket.status}
-                    </span>
-                  </td>
-                  <td>{ticket.assigned_to_name || (ticket.assigned_to ? 'Assigned' : 'Unassigned')}</td>
-                  <td>{ticket.created_at ? new Date(ticket.created_at).toLocaleDateString() : '-'}</td>
-                </tr>
-              ))}
-            </tbody>
+            ))}
+          </tbody>
           </table>
         </div>
       )}

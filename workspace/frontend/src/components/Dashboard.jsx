@@ -6,11 +6,7 @@ function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    fetchSummary()
-  }, [])
-
-  const fetchSummary = async () => {
+  async function fetchSummary() {
     setLoading(true)
     setError('')
     try {
@@ -25,6 +21,10 @@ function Dashboard() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    fetchSummary()
+  }, [])
 
   if (loading) return <p>Loading dashboard...</p>
 

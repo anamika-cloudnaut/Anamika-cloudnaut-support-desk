@@ -186,53 +186,31 @@ function App() {
               the details our team needs to investigate your issue.
             </p>
 
-            <button
-              className="primary-button"
-              onClick={() => setShowForm(true)}
-            >
-              <span>Create Support Ticket</span>
-              <span className="button-arrow">→</span>
-            </button>
+            <div className="welcome-actions">
+              <button
+                className="primary-button"
+                onClick={() => setShowForm(true)}
+              >
+                <span>Create Support Ticket</span>
+                <span className="button-arrow">→</span>
+              </button>
 
-            <button
-              className="primary-button"
-              onClick={() => setShowList(true)}
-              style={{ marginTop: '12px' }}
-            >
-              <span>{session.user.role === 'employee' ? 'View My Requests' : 'View All Tickets'}</span>
-              <span className="button-arrow">→</span>
-            </button>
+              <button
+                className="secondary-button"
+                onClick={() => setShowList(true)}
+              >
+                <span>View All Tickets</span>
+                <span className="button-arrow">→</span>
+              </button>
 
-            {session.user.role !== 'employee' && <button
-              className="primary-button"
-              onClick={() => setShowDashboard(true)}
-              style={{ marginTop: '12px' }}
-            >
-              <span>View Dashboard</span>
-              <span className="button-arrow">→</span>
-            </button>}
-
-            {session.user.role === 'admin' && <button
-              className="primary-button"
-              onClick={() => setShowTeam(true)}
-              style={{ marginTop: '12px' }}
-            >
-              <span>Manage Staff Access</span>
-              <span className="button-arrow">→</span>
-            </button>}
-
-            {session.user.role === 'admin' && <button
-              className="primary-button"
-              onClick={() => setShowAccessRequests(true)}
-              style={{ marginTop: '12px' }}
-            >
-              <span>Review Access Requests</span>
-              <span className="button-arrow">→</span>
-            </button>}
-
-            {session.user.role === 'employee' && (
-              <ProgressUpdates onOpenTicket={(ticketId) => setSelectedTicketId(ticketId)} />
-            )}
+              <button
+                className="secondary-button"
+                onClick={() => setShowDashboard(true)}
+              >
+                <span>View Dashboard</span>
+                <span className="button-arrow">→</span>
+              </button>
+            </div>
 
             <div className="feature-grid">
 
