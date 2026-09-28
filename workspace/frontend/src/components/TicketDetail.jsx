@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { apiFetch } from '../api'
 
 // Allowed next statuses per the sprint brief's transition table.
 const STATUS_TRANSITIONS = {
@@ -8,7 +9,7 @@ const STATUS_TRANSITIONS = {
   Resolved: ['In Progress'],
 }
 
-function TicketDetail({ ticketId, onBack }) {
+function TicketDetail({ ticketId, onBack, user }) {
   const [ticket, setTicket] = useState(null)
   const [teamMembers, setTeamMembers] = useState([])
   const [notes, setNotes] = useState([])
@@ -19,11 +20,16 @@ function TicketDetail({ ticketId, onBack }) {
 
   const [newNote, setNewNote] = useState('')
   const [noteAuthor, setNoteAuthor] = useState('')
+  const [shareWithRequester, setShareWithRequester] = useState(true)
   const [noteSubmitting, setNoteSubmitting] = useState(false)
   const [noteError, setNoteError] = useState('')
 
   const [assignSubmitting, setAssignSubmitting] = useState(false)
   const [statusSubmitting, setStatusSubmitting] = useState(false)
+  const [showTicketEditor, setShowTicketEditor] = useState(false)
+  const [priorityDraft, setPriorityDraft] = useState('')
+  const [dueDateDraft, setDueDateDraft] = useState('')
+  const [ticketDetailsSubmitting, setTicketDetailsSubmitting] = useState(false)
   const [actionError, setActionError] = useState('')
 
   useEffect(() => {
@@ -35,25 +41,30 @@ function TicketDetail({ ticketId, onBack }) {
     setLoading(true)
     setError('')
     try {
-      const [ticketRes, membersRes, historyRes] = await Promise.all([
-        fetch(`http://localhost:4000/requests/${ticketId}`),
-        fetch('http://localhost:4000/team-members'),
-        fetch(`http://localhost:4000/requests/${ticketId}/history`),
-      ])
+      const requests = [apiFetch(`/requests/${ticketId}`)]
+      if (user.role !== 'employee') {
+        requests.push(apiFetch('/team-members'))
+        requests.push(apiFetch(`/requests/${ticketId}/history`))
+      }
+      requests.push(apiFetch(`/requests/${ticketId}/notes`))
+      const responses = await Promise.all(requests)
+      const ticketRes = responses[0]
+      const membersRes = user.role === 'employee' ? null : responses[1]
+      const historyRes = user.role === 'employee' ? null : responses[2]
+      const notesRes = responses[responses.length - 1]
 
       const ticketData = await ticketRes.json()
-      const membersData = await membersRes.json()
-      const historyData = await historyRes.json()
+      const membersData = membersRes ? await membersRes.json() : []
+      const historyData = historyRes ? await historyRes.json() : []
+      const notesData = await notesRes.json()
 
       if (!ticketRes.ok) throw new Error(ticketData.detail || 'Failed to load ticket')
+      if (!notesRes.ok) throw new Error(notesData.detail || 'Failed to load progress updates')
 
       setTicket(ticketData)
       setTeamMembers(Array.isArray(membersData) ? membersData : membersData.results || [])
       setHistory(Array.isArray(historyData) ? historyData : historyData.results || [])
-      // No separate GET notes endpoint in the brief's API list — notes come from
-      // whatever the ticket response embeds. If this stays empty, the API may need
-      // a notes array added to GET /requests/{id}, or a dedicated GET notes route.
-      setNotes(ticketData.notes || [])
+      setNotes(Array.isArray(notesData) ? notesData : notesData.results || [])
     } catch (fetchError) {
       console.error('Request failed:', fetchError)
       setError(fetchError.message || 'Could not connect to the API.')
@@ -70,7 +81,7 @@ function TicketDetail({ ticketId, onBack }) {
     setActionError('')
 
     try {
-      const response = await fetch(`http://localhost:4000/requests/${ticketId}/assignment`, {
+      const response = await apiFetch(`/requests/${ticketId}/assignment`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ assigned_to: assignedTo }),
@@ -95,7 +106,7 @@ function TicketDetail({ ticketId, onBack }) {
     setActionError('')
 
     try {
-      const response = await fetch(`http://localhost:4000/requests/${ticketId}/status`, {
+      const response = await apiFetch(`/requests/${ticketId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
@@ -109,6 +120,30 @@ function TicketDetail({ ticketId, onBack }) {
       setActionError(statusError.message || 'Could not update status.')
     } finally {
       setStatusSubmitting(false)
+    }
+  }
+
+  const handleSaveTicketDetails = async (event) => {
+    event.preventDefault()
+    setTicketDetailsSubmitting(true)
+    setActionError('')
+    try {
+      const response = await apiFetch(`/requests/${ticketId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          priority: priorityDraft,
+          due_date: dueDateDraft || null,
+        }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.detail || 'Failed to update ticket details')
+      setTicket(data)
+      setShowTicketEditor(false)
+      loadAll()
+    } catch (updateError) {
+      setActionError(updateError.message || 'Could not update ticket details.')
+    } finally {
+      setTicketDetailsSubmitting(false)
     }
   }
 
@@ -128,10 +163,10 @@ function TicketDetail({ ticketId, onBack }) {
     setNoteError('')
 
     try {
-      const response = await fetch(`http://localhost:4000/requests/${ticketId}/notes`, {
+      const response = await apiFetch(`/requests/${ticketId}/notes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ note: newNote, created_by: noteAuthor }),
+        body: JSON.stringify({ note: newNote, created_by: noteAuthor, is_public: shareWithRequester }),
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.detail || 'Failed to add note')
@@ -171,13 +206,15 @@ function TicketDetail({ ticketId, onBack }) {
       <p>{ticket.description}</p>
 
       <div className="ticket-meta-grid">
+        <div><strong>Ticket ID:</strong> #{ticket.id}</div>
         <div><strong>Requester:</strong> {ticket.requester_name} ({ticket.requester_email})</div>
         <div><strong>Category:</strong> {ticket.category}</div>
         <div><strong>Priority:</strong> {ticket.priority}</div>
         <div><strong>Status:</strong> {ticket.status}</div>
-        <div><strong>Assigned to:</strong> {assignedMember ? assignedMember.name : 'Unassigned'}</div>
+        <div><strong>Assigned to:</strong> {assignedMember?.name || ticket.assigned_to_name || (ticket.assigned_to ? 'Assigned team member' : 'Unassigned')}</div>
         <div><strong>Due date:</strong> {ticket.due_date || 'None set'}</div>
         <div><strong>Created:</strong> {ticket.created_at ? new Date(ticket.created_at).toLocaleString() : '-'}</div>
+        <div><strong>Updated:</strong> {ticket.updated_at ? new Date(ticket.updated_at).toLocaleString() : '-'}</div>
       </div>
 
       {actionError && (
@@ -187,7 +224,7 @@ function TicketDetail({ ticketId, onBack }) {
         </div>
       )}
 
-      <div className="form-row">
+      {user.role !== 'employee' && <div className="form-row">
         <div className="form-group">
           <label htmlFor="assign">Assign to</label>
           <select
@@ -221,12 +258,53 @@ function TicketDetail({ ticketId, onBack }) {
             ))}
           </select>
         </div>
-      </div>
+      </div>}
+
+      {user.role !== 'employee' && <div className="ticket-details-editor">
+        {!showTicketEditor ? (
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => {
+              setPriorityDraft(ticket.priority)
+              setDueDateDraft(ticket.due_date || '')
+              setShowTicketEditor(true)
+            }}
+          >
+            Edit priority and due date
+          </button>
+        ) : (
+          <form className="ticket-form" onSubmit={handleSaveTicketDetails}>
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="ticket-priority">Priority</label>
+                <select id="ticket-priority" value={priorityDraft} onChange={(event) => setPriorityDraft(event.target.value)}>
+                  <option value="Low">Low</option>
+                  <option value="Medium">Medium</option>
+                  <option value="High">High</option>
+                  <option value="Critical">Critical</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label htmlFor="ticket-due-date">Due date</label>
+                <input id="ticket-due-date" type="date" value={dueDateDraft} onChange={(event) => setDueDateDraft(event.target.value)} />
+              </div>
+            </div>
+            <button type="submit" className="submit-button" disabled={ticketDetailsSubmitting}>
+              {ticketDetailsSubmitting ? 'Saving...' : 'Save ticket details'}
+            </button>
+            <button type="button" className="secondary-button" onClick={() => setShowTicketEditor(false)} disabled={ticketDetailsSubmitting}>
+              Cancel
+            </button>
+          </form>
+        )}
+      </div>}
 
       <div className="form-divider"></div>
 
-      <h3>Progress Notes</h3>
+      <h3>{user.role === 'employee' ? 'Progress Updates' : 'Progress Notes'}</h3>
 
+      {user.role !== 'employee' && <>
       <form onSubmit={handleAddNote} className="ticket-form">
         <div className="form-group">
           <label htmlFor="noteAuthor">Your name</label>
@@ -245,6 +323,14 @@ function TicketDetail({ ticketId, onBack }) {
             onChange={(e) => setNewNote(e.target.value)}
           />
         </div>
+        <label className="note-share-toggle">
+          <input
+            type="checkbox"
+            checked={shareWithRequester}
+            onChange={(event) => setShareWithRequester(event.target.checked)}
+          />
+          <span>Share this progress update with the ticket requester</span>
+        </label>
         {noteError && (
           <div className="error-box">
             <strong>Unable to add note</strong>
@@ -255,9 +341,10 @@ function TicketDetail({ ticketId, onBack }) {
           {noteSubmitting ? 'Adding...' : 'Add Note'}
         </button>
       </form>
+      </>}
 
       <ul className="notes-list">
-        {notes.length === 0 && <li>No notes yet.</li>}
+        {notes.length === 0 && <li>{user.role === 'employee' ? 'No progress updates yet.' : 'No notes yet.'}</li>}
         {notes.map((note) => (
           <li key={note.id}>
             <span>{note.note} — <em>{note.created_by}</em></span>
@@ -268,6 +355,7 @@ function TicketDetail({ ticketId, onBack }) {
         ))}
       </ul>
 
+      {user.role !== 'employee' && <>
       <div className="form-divider"></div>
 
       <h3>Activity History</h3>
@@ -283,6 +371,7 @@ function TicketDetail({ ticketId, onBack }) {
           </li>
         ))}
       </ul>
+      </>}
 
     </div>
   )

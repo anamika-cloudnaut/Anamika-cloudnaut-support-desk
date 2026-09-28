@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { apiFetch } from '../api'
 
 function CreateTicketForm({ onSuccess }) {
   const [formData, setFormData] = useState({
@@ -7,8 +8,6 @@ function CreateTicketForm({ onSuccess }) {
     requester_name: '',
     requester_email: '',
     category: '',
-    priority: '',
-    due_date: '',
   })
 
   const [loading, setLoading] = useState(false)
@@ -35,8 +34,6 @@ function CreateTicketForm({ onSuccess }) {
       requester_name: formData.requester_name,
       requester_email: formData.requester_email,
       category: formData.category,
-      priority: formData.priority,
-      due_date: formData.due_date || null,
     }
 
     console.log('FORM DATA:', formData)
@@ -44,7 +41,7 @@ function CreateTicketForm({ onSuccess }) {
     console.log('JSON PAYLOAD:', JSON.stringify(payload))
 
     try {
-      const response = await fetch('http://localhost:4000/requests', {
+      const response = await apiFetch('/requests', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -129,52 +126,23 @@ function CreateTicketForm({ onSuccess }) {
           </div>
         </div>
 
-        <div className="form-row">
-          <div className="form-group">
-            <label htmlFor="category">Category</label>
-            <select
-              id="category"
-              name="category"
-              value={formData.category}
-              onChange={handleChange}
-              required
-            >
-              <option value="">Select category</option>
-              <option value="Application">Application</option>
-              <option value="Access">Access</option>
-              <option value="Infrastructure">Infrastructure</option>
-              <option value="Data">Data</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="priority">Priority</label>
-            <select
-              id="priority"
-              name="priority"
-              value={formData.priority}
-              onChange={handleChange}
-              required
-            >
-              <option value="">Select priority</option>
-              <option value="Low">Low</option>
-              <option value="Medium">Medium</option>
-              <option value="High">High</option>
-              <option value="Critical">Critical</option>
-            </select>
-          </div>
-        </div>
-
         <div className="form-group">
-          <label htmlFor="due_date">Due Date</label>
-          <input
-            id="due_date"
-            name="due_date"
-            type="date"
-            value={formData.due_date}
+          <label htmlFor="category">Category</label>
+          <select
+            id="category"
+            name="category"
+            value={formData.category}
             onChange={handleChange}
-          />
+            required
+          >
+            <option value="">Select category</option>
+            <option value="Application">Application</option>
+            <option value="Access">Access</option>
+            <option value="Infrastructure">Infrastructure</option>
+            <option value="Data">Data</option>
+            <option value="Other">Other</option>
+          </select>
+
         </div>
 
         {error && (

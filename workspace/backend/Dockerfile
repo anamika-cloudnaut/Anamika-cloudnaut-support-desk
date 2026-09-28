@@ -13,4 +13,4 @@ ENV PYTHONPATH=/app
 
 EXPOSE 8001
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]
+CMD ["sh", "-c", "python -m app.initialize_db && uvicorn app.main:app --host 0.0.0.0 --port 8001"]

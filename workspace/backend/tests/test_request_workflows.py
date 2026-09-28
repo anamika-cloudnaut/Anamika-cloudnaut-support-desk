@@ -96,7 +96,7 @@ def test_added_note_returns_api_response_fields():
     }
 
     class NoteRepository:
-        def add_note(self, request_id, note, created_by):
+        def add_note(self, request_id, note, created_by, is_public=False):
             return expected
 
     result = HistoryService(NoteRepository()).add_note(

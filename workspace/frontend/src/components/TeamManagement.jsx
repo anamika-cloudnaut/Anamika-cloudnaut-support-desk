@@ -1,0 +1,157 @@
+import { useEffect, useState } from 'react'
+import { apiFetch } from '../api'
+
+const emptyMember = { name: '', email: '', password: '', role: 'support' }
+
+async function fetchMembers() {
+  const response = await apiFetch('/team-members')
+  const data = await response.json()
+  if (!response.ok) throw new Error(data.detail || 'Could not load staff accounts.')
+  return data
+}
+
+function TeamManagement() {
+  const [members, setMembers] = useState([])
+  const [draft, setDraft] = useState(emptyMember)
+  const [editingId, setEditingId] = useState(null)
+  const [editDraft, setEditDraft] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
+
+  useEffect(() => {
+    fetchMembers()
+      .then(setMembers)
+      .catch((loadError) => setError(loadError.message))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const createMember = async (event) => {
+    event.preventDefault()
+    setSaving(true)
+    setError('')
+    setNotice('')
+    try {
+      const response = await apiFetch('/team-members', {
+        method: 'POST',
+        body: JSON.stringify(draft),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.detail || 'Could not create account.')
+      setDraft(emptyMember)
+      setNotice(`${data.name} has been added.`)
+      setMembers(await fetchMembers())
+    } catch (saveError) {
+      setError(saveError.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const startEditing = (member) => {
+    setEditingId(member.id)
+    setEditDraft({ ...member, password: '' })
+    setError('')
+    setNotice('')
+  }
+
+  const saveMember = async (event) => {
+    event?.preventDefault()
+    setSaving(true)
+    setError('')
+    setNotice('')
+    const { name, email, role, is_active, password } = editDraft
+    const payload = { name, email, role, is_active, password }
+    if (!payload.password) delete payload.password
+    try {
+      const response = await apiFetch(`/team-members/${editingId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.detail || 'Could not update account.')
+      setEditingId(null)
+      setEditDraft(null)
+      setNotice(`${data.name}'s account has been updated.`)
+      setMembers(await fetchMembers())
+    } catch (saveError) {
+      setError(saveError.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="team-management">
+      <section className="team-create-section">
+        <h3>Add staff account</h3>
+        <form className="ticket-form" onSubmit={createMember}>
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="staff-name">Name</label>
+              <input id="staff-name" required maxLength="100" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
+            </div>
+            <div className="form-group">
+              <label htmlFor="staff-email">Work email</label>
+              <input id="staff-email" type="email" required value={draft.email} onChange={(event) => setDraft({ ...draft, email: event.target.value })} />
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="staff-password">Temporary password</label>
+              <input id="staff-password" type="password" minLength="12" autoComplete="new-password" required value={draft.password} onChange={(event) => setDraft({ ...draft, password: event.target.value })} />
+            </div>
+            <div className="form-group">
+              <label htmlFor="staff-role">Role</label>
+              <select id="staff-role" value={draft.role} onChange={(event) => setDraft({ ...draft, role: event.target.value })}>
+                <option value="employee">Employee</option>
+                <option value="support">Support staff</option>
+                <option value="admin">Administrator</option>
+              </select>
+            </div>
+          </div>
+          <button className="submit-button" type="submit" disabled={saving}>{saving ? 'Adding...' : 'Add account'}</button>
+        </form>
+      </section>
+
+      {error && <div className="error-box"><strong>Account action failed</strong><span>{error}</span></div>}
+      {notice && <p className="team-notice" role="status">{notice}</p>}
+
+      <div className="team-table-wrap">
+        <table className="team-table">
+          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Access</th><th>Action</th></tr></thead>
+          <tbody>
+            {members.map((member) => editingId === member.id ? (
+              <tr key={member.id}>
+                <td><input aria-label="Name" value={editDraft.name} onChange={(event) => setEditDraft({ ...editDraft, name: event.target.value })} /></td>
+                <td><input aria-label="Email" type="email" value={editDraft.email} onChange={(event) => setEditDraft({ ...editDraft, email: event.target.value })} /></td>
+                <td>
+                  <select aria-label="Role" value={editDraft.role} onChange={(event) => setEditDraft({ ...editDraft, role: event.target.value })}>
+                    <option value="employee">Employee</option><option value="support">Support</option><option value="admin">Admin</option>
+                  </select>
+                </td>
+                <td><select aria-label="Account access" value={String(editDraft.is_active)} onChange={(event) => setEditDraft({ ...editDraft, is_active: event.target.value === 'true' })}><option value="true">Active</option><option value="false">Disabled</option></select></td>
+                <td className="team-actions">
+                  <input aria-label="New password (optional)" type="password" minLength="12" placeholder="New password" autoComplete="new-password" value={editDraft.password} onChange={(event) => setEditDraft({ ...editDraft, password: event.target.value })} />
+                  <button type="button" onClick={saveMember} disabled={saving}>Save</button>
+                  <button type="button" className="secondary-button" onClick={() => setEditingId(null)}>Cancel</button>
+                </td>
+              </tr>
+            ) : (
+              <tr key={member.id}>
+                <td>{member.name}</td><td>{member.email}</td><td>{member.role}</td>
+                <td><span className={`account-state ${member.is_active ? 'active' : 'inactive'}`}>{member.is_active ? 'Active' : 'Disabled'}</span></td>
+                <td><button type="button" onClick={() => startEditing(member)}>Manage</button></td>
+              </tr>
+            ))}
+            {!loading && members.length === 0 && <tr><td colSpan="5">No staff accounts found.</td></tr>}
+            {loading && <tr><td colSpan="5">Loading staff accounts...</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+export default TeamManagement

@@ -21,6 +21,7 @@ class RequestRepository:
             "priority": request.priority,
             "status": request.status,
             "assigned_to": request.assigned_to,
+            "assigned_to_name": request.assignee.name if request.assignee else None,
             "due_date": request.due_date.isoformat() if request.due_date else None,
             "created_at": request.created_at.isoformat() if request.created_at else None,
             "updated_at": request.updated_at.isoformat() if request.updated_at else None,
@@ -66,6 +67,7 @@ class RequestRepository:
             "priority": db_request.priority,
             "status": db_request.status,
             "assigned_to": db_request.assigned_to,
+            "assigned_to_name": db_request.assignee.name if db_request.assignee else None,
             "due_date": db_request.due_date.isoformat() if db_request.due_date else None,
             "created_at": db_request.created_at.isoformat() if db_request.created_at else None,
             "updated_at": db_request.updated_at.isoformat() if db_request.updated_at else None,
@@ -90,6 +92,28 @@ class RequestRepository:
             query = query.filter(TeamMember.is_active.is_(True))
         return query.order_by(TeamMember.name.asc()).all()
 
+    def get_team_member_by_email(self, email: str) -> Optional[TeamMember]:
+        return self.db.query(TeamMember).filter(func.lower(TeamMember.email) == email.lower()).first()
+
+    def create_team_member(self, member_data: Dict[str, Any]) -> TeamMember:
+        member = TeamMember(**member_data)
+        self.db.add(member)
+        self.db.commit()
+        self.db.refresh(member)
+        return member
+
+    def update_team_member(self, member: TeamMember, fields: Dict[str, Any]) -> TeamMember:
+        for field, value in fields.items():
+            setattr(member, field, value)
+        self.db.commit()
+        self.db.refresh(member)
+        return member
+
+    def count_active_admins(self) -> int:
+        return self.db.query(TeamMember).filter(
+            TeamMember.role == "admin", TeamMember.is_active.is_(True)
+        ).count()
+
     def list_requests(
         self,
         *,
@@ -97,6 +121,7 @@ class RequestRepository:
         assigned_to: Optional[int] = None,
         category: Optional[str] = None,
         priority: Optional[str] = None,
+        requester_email: Optional[str] = None,
         sort_by: str = "created_at",
         sort_order: str = "desc",
     ):
@@ -116,6 +141,8 @@ class RequestRepository:
             query = query.filter(SupportRequest.category == category)
         if priority:
             query = query.filter(SupportRequest.priority == priority)
+        if requester_email:
+            query = query.filter(func.lower(SupportRequest.requester_email) == requester_email.lower())
 
         column = sort_columns[sort_by]
         query = query.order_by(column.asc() if sort_order == "asc" else column.desc())
@@ -152,11 +179,18 @@ class RequestRepository:
             .all()
         )
 
-    def add_note(self, request_id: int, note_text: str, created_by: Optional[str] = None):
+    def add_note(
+        self,
+        request_id: int,
+        note_text: str,
+        created_by: Optional[str] = None,
+        is_public: bool = False,
+    ):
         note = TicketNote(
             request_id=request_id,
             note=note_text,
             created_by=created_by,
+            is_public=is_public,
         )
         self.db.add(note)
         self.db.commit()
@@ -167,6 +201,7 @@ class RequestRepository:
             "note": note.note,
             "created_by": note.created_by,
             "created_at": note.created_at.isoformat() if note.created_at else None,
+            "is_public": note.is_public,
         }
 
     def list_notes(self, request_id: int):
@@ -176,6 +211,30 @@ class RequestRepository:
             .order_by(TicketNote.created_at.asc(), TicketNote.id.asc())
             .all()
         )
+
+    def list_public_updates(self, requester_email: str):
+        rows = (
+            self.db.query(TicketNote, SupportRequest.title)
+            .join(SupportRequest, SupportRequest.id == TicketNote.request_id)
+            .filter(
+                TicketNote.is_public.is_(True),
+                func.lower(SupportRequest.requester_email) == requester_email.lower(),
+            )
+            .order_by(TicketNote.created_at.desc(), TicketNote.id.desc())
+            .all()
+        )
+        return [
+            {
+                "id": note.id,
+                "request_id": note.request_id,
+                "ticket_title": title,
+                "note": note.note,
+                "created_by": note.created_by,
+                "created_at": note.created_at,
+                "is_public": note.is_public,
+            }
+            for note, title in rows
+        ]
 
     def get_team_member(self, member_id: int) -> Optional[TeamMember]:
         return self.db.query(TeamMember).filter(TeamMember.id == member_id).first()

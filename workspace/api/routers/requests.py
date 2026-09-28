@@ -1,14 +1,22 @@
 import os
 
 import httpx
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from auth import get_current_user, require_roles
+from schemas.access_requests import AccessRequestCreate, AccessRequestResponse, AccessRequestReview
 from schemas.assignment import AssignmentRequest
 from schemas.dashboard import DashboardSummary
 from schemas.history import HistoryResponse
-from schemas.note import NoteCreate, NoteResponse
+from schemas.note import NoteCreate, NoteResponse, ProgressUpdateResponse
+from schemas.password_reset import PasswordResetConfirm, PasswordResetRequest
 from schemas.request import TicketCreate, TicketResponse, TicketUpdate
-from schemas.team_members import TeamMemberResponse
+from schemas.team_members import (
+    LoginRequest,
+    TeamMemberCreate,
+    TeamMemberResponse,
+    TeamMemberUpdate,
+)
 from schemas.status import StatusUpdate
 
 router = APIRouter(prefix="/requests", tags=["Requests"])
@@ -37,6 +45,7 @@ async def backend_request(
     *,
     params: dict | None = None,
     json: dict | None = None,
+    access_token: str | None = None,
 ):
     """
     Send request to internal backend service and forward
@@ -47,22 +56,16 @@ async def backend_request(
             base_url=BACKEND_URL,
             timeout=BACKEND_TIMEOUT,
         ) as client:
-            if method == "GET":
-                response = await client.get(path, params=params)
-            elif method == "POST":
-                response = await client.post(
-                    path,
-                    **({"params": params} if params is not None else {}),
-                    json=json,
-                )
-            elif method == "PATCH":
-                response = await client.patch(
-                    path,
-                    **({"params": params} if params is not None else {}),
-                    json=json,
-                )
-            else:
+            if method not in {"GET", "POST", "PATCH"}:
                 raise RuntimeError(f"Unsupported backend HTTP method: {method}")
+            headers = {"Authorization": f"Bearer {access_token}"} if access_token else None
+            response = await client.request(
+                method,
+                path,
+                params=params,
+                json=json,
+                headers=headers,
+            )
     except httpx.RequestError as exc:
         raise HTTPException(
             status_code=502,
@@ -97,13 +100,19 @@ async def backend_request(
     response_model=TicketResponse,
     status_code=status.HTTP_201_CREATED,
 )
-async def create_ticket(ticket: TicketCreate):
+async def create_ticket(
+    ticket: TicketCreate,
+    user=Depends(get_current_user),
+):
+    if user["role"] == "employee" and ticket.requester_email.lower() != user["email"].lower():
+        raise HTTPException(status_code=403, detail="Employees can only submit tickets for their own account.")
     payload = ticket.model_dump(mode="json")
 
     data = await backend_request(
         "POST",
         "/internal/requests",
         json=payload,
+        access_token=user["token"],
     )
 
     return data
@@ -124,6 +133,7 @@ async def list_requests(
     priority: str | None = None,
     sort_by: str = "created_at",
     sort_order: str = "desc",
+    user=Depends(get_current_user),
 ):
     if sort_by not in VALID_SORT_BY:
         raise HTTPException(
@@ -156,6 +166,7 @@ async def list_requests(
         "GET",
         "/internal/requests",
         params=params,
+        access_token=user["token"],
     )
 
     return data
@@ -169,7 +180,7 @@ async def list_requests(
     "/{request_id}",
     response_model=TicketResponse,
 )
-async def get_request(request_id: int):
+async def get_request(request_id: int, user=Depends(get_current_user)):
     if request_id <= 0:
         raise HTTPException(
             status_code=400,
@@ -179,7 +190,11 @@ async def get_request(request_id: int):
     data = await backend_request(
         "GET",
         f"/internal/requests/{request_id}",
+        access_token=user["token"],
     )
+
+    if user["role"] == "employee" and data["requester_email"].lower() != user["email"].lower():
+        raise HTTPException(status_code=404, detail=f"Request {request_id} not found.")
 
     return data
 
@@ -195,6 +210,7 @@ async def get_request(request_id: int):
 async def update_ticket(
     request_id: int,
     ticket: TicketUpdate,
+    user=Depends(require_roles("support", "admin")),
 ):
     if request_id <= 0:
         raise HTTPException(
@@ -217,6 +233,7 @@ async def update_ticket(
         "PATCH",
         f"/internal/requests/{request_id}",
         json=payload,
+        access_token=user["token"],
     )
 
     return data
@@ -233,6 +250,7 @@ async def update_ticket(
 async def update_assignment(
     request_id: int,
     assignment: AssignmentRequest,
+    user=Depends(require_roles("support", "admin")),
 ):
     if request_id <= 0:
         raise HTTPException(
@@ -246,6 +264,7 @@ async def update_assignment(
         "PATCH",
         f"/internal/requests/{request_id}/assignment",
         json=payload,
+        access_token=user["token"],
     )
 
     return data
@@ -262,6 +281,7 @@ async def update_assignment(
 async def update_status(
     request_id: int,
     status_update: StatusUpdate,
+    user=Depends(require_roles("support", "admin")),
 ):
     if request_id <= 0:
         raise HTTPException(
@@ -275,6 +295,7 @@ async def update_status(
         "PATCH",
         f"/internal/requests/{request_id}/status",
         json=payload,
+        access_token=user["token"],
     )
 
     return data
@@ -292,6 +313,7 @@ async def update_status(
 async def add_note(
     request_id: int,
     note: NoteCreate,
+    user=Depends(require_roles("support", "admin")),
 ):
     if request_id <= 0:
         raise HTTPException(
@@ -305,9 +327,31 @@ async def add_note(
         "POST",
         f"/internal/requests/{request_id}/notes",
         json=payload,
+        access_token=user["token"],
     )
 
     return data
+
+
+@router.get(
+    "/{request_id}/notes",
+    response_model=list[NoteResponse],
+)
+async def get_notes(
+    request_id: int,
+    user=Depends(get_current_user),
+):
+    if request_id <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Request ID must be a positive integer.",
+        )
+
+    return await backend_request(
+        "GET",
+        f"/internal/requests/{request_id}/notes",
+        access_token=user["token"],
+    )
 
 
 # ---------------------------------------------------------
@@ -318,7 +362,10 @@ async def add_note(
     "/{request_id}/history",
     response_model=list[HistoryResponse],
 )
-async def get_history(request_id: int):
+async def get_history(
+    request_id: int,
+    user=Depends(require_roles("support", "admin")),
+):
     if request_id <= 0:
         raise HTTPException(
             status_code=400,
@@ -328,6 +375,7 @@ async def get_history(request_id: int):
     data = await backend_request(
         "GET",
         f"/internal/requests/{request_id}/history",
+        access_token=user["token"],
     )
 
     return data
@@ -343,6 +391,7 @@ async def get_history(request_id: int):
 )
 async def get_team_members(
     active_only: bool = False,
+    user=Depends(require_roles("support", "admin")),
 ):
     params = {
         "active_only": active_only,
@@ -352,9 +401,112 @@ async def get_team_members(
         "GET",
         "/internal/team-members",
         params=params,
+        access_token=user["token"],
     )
 
     return data
+
+
+@team_router.post("/auth/login")
+async def login(credentials: LoginRequest):
+    return await backend_request(
+        "POST",
+        "/internal/auth/login",
+        json=credentials.model_dump(mode="json"),
+    )
+
+
+@team_router.post("/auth/forgot-password")
+async def forgot_password(request: PasswordResetRequest):
+    return await backend_request(
+        "POST",
+        "/internal/auth/forgot-password",
+        json=request.model_dump(mode="json"),
+    )
+
+
+@team_router.post("/auth/reset-password")
+async def reset_password(request: PasswordResetConfirm):
+    return await backend_request(
+        "POST",
+        "/internal/auth/reset-password",
+        json=request.model_dump(mode="json"),
+    )
+
+
+@team_router.post("/auth/signup", response_model=AccessRequestResponse, status_code=status.HTTP_201_CREATED)
+async def signup(request: AccessRequestCreate):
+    return await backend_request(
+        "POST",
+        "/internal/access-requests",
+        json=request.model_dump(mode="json"),
+    )
+
+
+@team_router.get("/access-requests", response_model=list[AccessRequestResponse])
+async def get_access_requests(
+    request_status: str = Query(default="pending", alias="status"),
+    user=Depends(require_roles("admin")),
+):
+    return await backend_request(
+        "GET",
+        "/internal/access-requests",
+        params={"status": request_status},
+        access_token=user["token"],
+    )
+
+
+@team_router.patch("/access-requests/{access_request_id}", response_model=AccessRequestResponse)
+async def review_access_request(
+    access_request_id: int,
+    review: AccessRequestReview,
+    user=Depends(require_roles("admin")),
+):
+    return await backend_request(
+        "PATCH",
+        f"/internal/access-requests/{access_request_id}",
+        json=review.model_dump(mode="json"),
+        access_token=user["token"],
+    )
+
+
+@team_router.get("/progress-updates", response_model=list[ProgressUpdateResponse])
+async def get_progress_updates(user=Depends(require_roles("employee"))):
+    return await backend_request(
+        "GET",
+        "/internal/progress-updates",
+        access_token=user["token"],
+    )
+
+
+@team_router.post("/team-members", response_model=TeamMemberResponse, status_code=status.HTTP_201_CREATED)
+async def create_team_member(
+    member: TeamMemberCreate,
+    user=Depends(require_roles("admin")),
+):
+    return await backend_request(
+        "POST",
+        "/internal/team-members",
+        json=member.model_dump(mode="json"),
+        access_token=user["token"],
+    )
+
+
+@team_router.patch("/team-members/{member_id}", response_model=TeamMemberResponse)
+async def update_team_member(
+    member_id: int,
+    member: TeamMemberUpdate,
+    user=Depends(require_roles("admin")),
+):
+    payload = member.model_dump(mode="json", exclude_unset=True)
+    if not payload:
+        raise HTTPException(status_code=400, detail="Provide at least one field to update.")
+    return await backend_request(
+        "PATCH",
+        f"/internal/team-members/{member_id}",
+        json=payload,
+        access_token=user["token"],
+    )
 
 
 # ---------------------------------------------------------
@@ -368,10 +520,11 @@ dashboard_router = APIRouter(tags=["Dashboard"])
     "/dashboard/summary",
     response_model=DashboardSummary,
 )
-async def get_dashboard_summary():
+async def get_dashboard_summary(user=Depends(require_roles("support", "admin"))):
     data = await backend_request(
         "GET",
         "/internal/dashboard",
+        access_token=user["token"],
     )
 
     return data

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { apiFetch } from '../api'
 
 const STATUS_OPTIONS = ['Open', 'In Progress', 'Blocked', 'Resolved']
 const PRIORITY_OPTIONS = ['Low', 'Medium', 'High', 'Critical']
@@ -20,7 +21,7 @@ function TicketList({ onSelectTicket }) {
     setError('')
 
     try {
-      const response = await fetch('http://localhost:4000/requests')
+      const response = await apiFetch('/requests')
       const data = await response.json()
 
       console.log('Tickets fetched:', data)

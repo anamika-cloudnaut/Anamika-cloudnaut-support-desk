@@ -41,11 +41,16 @@ services:
       context: .
       dockerfile: workspace/backend/Dockerfile
     container_name: app_backend
-    ports:
-      - "8001:8001"
     environment:
       - DATABASE_URL=postgresql+psycopg2://cloudnaut:cloudnaut_pass@db:5432/cloudnaut_db
       - API_SERVICE_URL=http://api:4000
+      - AUTH_SECRET_KEY=${AUTH_SECRET_KEY:?Set AUTH_SECRET_KEY in .env before starting}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USERNAME=${SMTP_USERNAME:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL:-}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
     depends_on:
       - db
     networks:
@@ -62,6 +67,7 @@ services:
     environment:
       - PORT=4000
       - BACKEND_URL=http://backend:8001
+      - AUTH_SECRET_KEY=${AUTH_SECRET_KEY:?Set AUTH_SECRET_KEY in .env before starting}
     depends_on:
       - backend
       - db

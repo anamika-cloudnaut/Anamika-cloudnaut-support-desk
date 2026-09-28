@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Text
+from sqlalchemy import CheckConstraint, Column, Integer, String, DateTime, Boolean, ForeignKey, Text
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship, declarative_base
 
@@ -12,9 +12,42 @@ class TeamMember(Base):
     name = Column(String(100), nullable=False)
     email = Column(String(255), nullable=False, unique=True)
     is_active = Column(Boolean, nullable=False, default=True)
+    role = Column(String(20), nullable=False, default="support", server_default="support")
+    password_hash = Column(String(255), nullable=True)
 
     # Relationships
     assigned_requests = relationship("SupportRequest", back_populates="assignee")
+
+
+class AccessRequest(Base):
+    __tablename__ = "access_requests"
+    __table_args__ = (
+        CheckConstraint("role IN ('employee', 'support')", name="ck_access_requests_role"),
+        CheckConstraint("status IN ('pending', 'approved', 'rejected')", name="ck_access_requests_status"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False)
+    email = Column(String(255), nullable=False, index=True)
+    role = Column(String(20), nullable=False)
+    password_hash = Column(String(255), nullable=True)
+    message = Column(Text, nullable=True)
+    status = Column(String(20), nullable=False, default="pending", server_default="pending", index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    reviewed_at = Column(DateTime(timezone=True), nullable=True)
+    reviewed_by = Column(Integer, ForeignKey("team_members.id"), nullable=True)
+    review_note = Column(Text, nullable=True)
+
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("team_members.id", ondelete="CASCADE"), nullable=False, index=True)
+    token_hash = Column(String(64), nullable=False, unique=True, index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    used_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
 class SupportRequest(Base):
@@ -73,5 +106,6 @@ class TicketNote(Base):
     note = Column(Text, nullable=False)
     created_by = Column(String(100), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    is_public = Column(Boolean, nullable=False, default=False, server_default="false")
 
     request = relationship("SupportRequest", back_populates="notes")
