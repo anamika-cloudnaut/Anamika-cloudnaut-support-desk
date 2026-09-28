@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { apiFetch } from '../api'
 
 function Dashboard() {
   const [summary, setSummary] = useState(null)
@@ -13,7 +14,7 @@ function Dashboard() {
     setLoading(true)
     setError('')
     try {
-      const response = await fetch('http://localhost:4000/dashboard/summary')
+      const response = await apiFetch('/dashboard/summary')
       const data = await response.json()
       if (!response.ok) throw new Error(data.detail || 'Failed to load dashboard')
       setSummary(data)

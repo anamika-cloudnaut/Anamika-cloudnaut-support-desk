@@ -25,7 +25,7 @@ class TicketCreate(BaseModel):
     requester_name: str = Field(min_length=1, max_length=100)
     requester_email: EmailStr
     category: Category
-    priority: Priority
+    priority: Priority = Priority.MEDIUM
     due_date: date | None = None
 
 
@@ -53,6 +53,7 @@ class TicketResponse(BaseModel):
     priority: Priority
     status: str
     assigned_to: int | None = None
+    assigned_to_name: str | None = None
     due_date: date | None = None
     created_at: datetime
     updated_at: datetime

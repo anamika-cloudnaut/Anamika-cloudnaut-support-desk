@@ -1,20 +1,41 @@
 import { useState } from 'react'
+import LoginForm from './components/LoginForm'
+import ForgotPasswordForm from './components/ForgotPasswordForm'
+import PasswordResetForm from './components/PasswordResetForm'
+import RoleSelection from './components/RoleSelection'
+import SignupForm from './components/SignupForm'
+import AccessRequestReview from './components/AccessRequestReview'
+import TeamManagement from './components/TeamManagement'
 import CreateTicketForm from './components/CreateTicketForm'
 import TicketSuccess from './components/TicketSuccess'
 import TicketList from './components/TicketList'
 import TicketDetail from './components/TicketDetail'
 import Dashboard from './components/Dashboard'
+import ProgressUpdates from './components/ProgressUpdates'
+import RequestTracker from './components/RequestTracker'
 import './App.css'
 
 function App() {
+  const resetToken = new URLSearchParams(window.location.search).get('reset_token')
+  const [session, setSession] = useState(() => {
+    const token = localStorage.getItem('supportDeskToken')
+    const user = localStorage.getItem('supportDeskUser')
+    return token && user ? { token, user: JSON.parse(user) } : null
+  })
+  const [showLogin, setShowLogin] = useState(false)
+  const [showSignup, setShowSignup] = useState(false)
+  const [showForgotPassword, setShowForgotPassword] = useState(false)
+  const [selectedRole, setSelectedRole] = useState(null)
   const [showForm, setShowForm] = useState(false)
   const [showList, setShowList] = useState(false)
   const [showDashboard, setShowDashboard] = useState(false)
+  const [showTeam, setShowTeam] = useState(false)
+  const [showAccessRequests, setShowAccessRequests] = useState(false)
+  const [showRequestTracker, setShowRequestTracker] = useState(false)
   const [selectedTicketId, setSelectedTicketId] = useState(null)
   const [createdTicket, setCreatedTicket] = useState(null)
 
   const handleTicketSuccess = (ticket) => {
-    console.log('Ticket created successfully:', ticket)
     setCreatedTicket(ticket)
   }
 
@@ -24,10 +45,34 @@ function App() {
   }
 
   const goHome = () => {
+    setCreatedTicket(null)
     setShowForm(false)
     setShowList(false)
     setShowDashboard(false)
+    setShowTeam(false)
+    setShowAccessRequests(false)
+    setShowRequestTracker(false)
     setSelectedTicketId(null)
+  }
+
+  const handleLogin = (loginData) => {
+    localStorage.setItem('supportDeskToken', loginData.access_token)
+    localStorage.setItem('supportDeskUser', JSON.stringify(loginData.user))
+    setSession({ token: loginData.access_token, user: loginData.user })
+    setShowLogin(false)
+    setShowSignup(false)
+    setShowForgotPassword(false)
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem('supportDeskToken')
+    localStorage.removeItem('supportDeskUser')
+    setSession(null)
+    setShowLogin(false)
+    setShowSignup(false)
+    setShowForgotPassword(false)
+    setSelectedRole(null)
+    goHome()
   }
 
   if (createdTicket) {
@@ -36,12 +81,13 @@ function App() {
         <TicketSuccess
           ticket={createdTicket}
           onCreateAnother={handleCreateAnother}
+          onGoHome={goHome}
         />
       </div>
     )
   }
 
-  const showingWelcome = !showForm && !showList && !showDashboard && !selectedTicketId
+  const showingWelcome = !showForm && !showList && !showDashboard && !showTeam && !showAccessRequests && !showRequestTracker && !selectedTicketId
 
   return (
     <div className="app-shell">
@@ -69,7 +115,60 @@ function App() {
 
         </header>
 
-        {showingWelcome && (
+        {resetToken ? (
+          <PasswordResetForm
+            token={resetToken}
+            onComplete={() => {
+              window.history.replaceState({}, '', window.location.pathname)
+              setSelectedRole(null)
+              setShowLogin(true)
+              setShowSignup(false)
+            }}
+          />
+        ) : !session ? (
+          showForgotPassword ? (
+            <ForgotPasswordForm onBack={() => setShowForgotPassword(false)} />
+          ) : showSignup ? (
+            <SignupForm
+              initialRole={selectedRole}
+              onBackToLogin={() => setShowSignup(false)}
+              onForgotPassword={() => setShowForgotPassword(true)}
+            />
+          ) : showLogin ? (
+            selectedRole ? (
+              <LoginForm
+                role={selectedRole}
+                onLogin={handleLogin}
+                onBackToRoles={() => setSelectedRole(null)}
+                onSignUp={() => setShowSignup(true)}
+                onForgotPassword={() => setShowForgotPassword(true)}
+              />
+            ) : (
+              <RoleSelection
+                onSelectRole={setSelectedRole}
+                onBackHome={() => setShowLogin(false)}
+              />
+            )
+          ) : (
+            <section className="welcome-card public-home-card">
+              <div className="welcome-icon">🎫</div>
+              <span className="section-label">SUPPORT PORTAL</span>
+              <h2>Welcome to Cloudnaut Support Desk</h2>
+              <p>Sign in with your work account to create support requests and follow their progress.</p>
+              <button type="button" className="primary-button" onClick={() => { setSelectedRole(null); setShowSignup(false); setShowLogin(true) }}>
+                <span>Sign in</span>
+                <span className="button-arrow">→</span>
+              </button>
+            </section>
+          )
+        ) : (
+          <div className="session-strip">
+            <span>{session.user.name} <strong>{session.user.role}</strong></span>
+            <button type="button" className="secondary-button" onClick={handleLogout}>Sign out</button>
+          </div>
+        )}
+
+        {session && showingWelcome && (
           <section className="welcome-card">
 
             <div className="welcome-icon">
@@ -100,18 +199,40 @@ function App() {
               onClick={() => setShowList(true)}
               style={{ marginTop: '12px' }}
             >
-              <span>View All Tickets</span>
+              <span>{session.user.role === 'employee' ? 'View My Requests' : 'View All Tickets'}</span>
               <span className="button-arrow">→</span>
             </button>
 
-            <button
+            {session.user.role !== 'employee' && <button
               className="primary-button"
               onClick={() => setShowDashboard(true)}
               style={{ marginTop: '12px' }}
             >
               <span>View Dashboard</span>
               <span className="button-arrow">→</span>
-            </button>
+            </button>}
+
+            {session.user.role === 'admin' && <button
+              className="primary-button"
+              onClick={() => setShowTeam(true)}
+              style={{ marginTop: '12px' }}
+            >
+              <span>Manage Staff Access</span>
+              <span className="button-arrow">→</span>
+            </button>}
+
+            {session.user.role === 'admin' && <button
+              className="primary-button"
+              onClick={() => setShowAccessRequests(true)}
+              style={{ marginTop: '12px' }}
+            >
+              <span>Review Access Requests</span>
+              <span className="button-arrow">→</span>
+            </button>}
+
+            {session.user.role === 'employee' && (
+              <ProgressUpdates onOpenTicket={(ticketId) => setSelectedTicketId(ticketId)} />
+            )}
 
             <div className="feature-grid">
 
@@ -135,22 +256,27 @@ function App() {
                 </div>
               </div>
 
-              <div className="feature-item">
-                <div className="feature-icon">📋</div>
-                <div>
-                  <h3>Track Requests</h3>
-                  <p>
-                    Every submitted request gets a unique ticket ID.
-                  </p>
+              {session.user.role === 'employee' ? (
+                <RequestTracker
+                  compact
+                  onViewAll={() => setShowRequestTracker(true)}
+                />
+              ) : (
+                <div className="feature-item">
+                  <div className="feature-icon">📋</div>
+                  <div>
+                    <h3>Track Requests</h3>
+                    <p>Every submitted request gets a unique ticket ID.</p>
+                  </div>
                 </div>
-              </div>
+              )}
 
             </div>
 
           </section>
         )}
 
-        {showForm && (
+        {session && showForm && (
           <section className="ticket-form-card">
 
             <div className="form-header">
@@ -187,7 +313,7 @@ function App() {
           </section>
         )}
 
-        {showList && !selectedTicketId && (
+        {session && showList && !selectedTicketId && (
           <section className="ticket-form-card">
 
             <div className="form-header">
@@ -197,7 +323,7 @@ function App() {
                   ALL REQUESTS
                 </span>
 
-                <h2>Support Requests</h2>
+                <h2>{session.user.role === 'employee' ? 'My Requests' : 'Support Requests'}</h2>
 
                 <p>
                   View, filter and sort all submitted tickets. Click a row for details.
@@ -223,7 +349,7 @@ function App() {
           </section>
         )}
 
-        {selectedTicketId && (
+        {session && selectedTicketId && (
           <section className="ticket-form-card">
 
             <div className="form-header">
@@ -244,12 +370,13 @@ function App() {
             <TicketDetail
               ticketId={selectedTicketId}
               onBack={() => setSelectedTicketId(null)}
+              user={session.user}
             />
 
           </section>
         )}
 
-        {showDashboard && (
+        {session && showDashboard && (
           <section className="ticket-form-card">
 
             <div className="form-header">
@@ -274,6 +401,51 @@ function App() {
 
             <Dashboard />
 
+          </section>
+        )}
+
+        {session && showRequestTracker && session.user.role === 'employee' && !selectedTicketId && (
+          <section className="ticket-form-card request-tracker-page">
+            <div className="form-header">
+              <div>
+                <span className="section-label">YOUR REQUESTS</span>
+                <h2>Track Requests</h2>
+                <p>Follow each request through the support process.</p>
+              </div>
+              <button type="button" className="close-button" onClick={goHome} aria-label="Back to dashboard">×</button>
+            </div>
+            <div className="form-divider"></div>
+            <RequestTracker onOpenTicket={(ticketId) => setSelectedTicketId(ticketId)} />
+          </section>
+        )}
+
+        {session && showTeam && session.user.role === 'admin' && (
+          <section className="ticket-form-card">
+            <div className="form-header">
+              <div>
+                <span className="section-label">ADMINISTRATION</span>
+                <h2>Staff Access</h2>
+                <p>Create accounts, assign roles, reset passwords, and disable access.</p>
+              </div>
+              <button type="button" className="close-button" onClick={goHome}>×</button>
+            </div>
+            <div className="form-divider"></div>
+            <TeamManagement />
+          </section>
+        )}
+
+        {session && showAccessRequests && session.user.role === 'admin' && (
+          <section className="ticket-form-card">
+            <div className="form-header">
+              <div>
+                <span className="section-label">ADMINISTRATION</span>
+                <h2>Access Requests</h2>
+                <p>Review Staff and Support Team account requests.</p>
+              </div>
+              <button type="button" className="close-button" onClick={goHome}>×</button>
+            </div>
+            <div className="form-divider"></div>
+            <AccessRequestReview />
           </section>
         )}
 

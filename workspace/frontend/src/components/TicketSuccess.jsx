@@ -1,4 +1,4 @@
-function TicketSuccess({ ticket, onCreateAnother }) {
+function TicketSuccess({ ticket, onCreateAnother, onGoHome }) {
   const formatDate = (value) => {
     if (!value) return 'Not provided'
 
@@ -106,12 +106,22 @@ function TicketSuccess({ ticket, onCreateAnother }) {
 
         </div>
 
-        <button
-          className="primary-button"
-          onClick={onCreateAnother}
-        >
-          Create Another Ticket
-        </button>
+        <div className="success-actions">
+          <button
+            type="button"
+            className="primary-button"
+            onClick={onCreateAnother}
+          >
+            Create Another Ticket
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={onGoHome}
+          >
+            Home
+          </button>
+        </div>
 
       </div>
     </div>

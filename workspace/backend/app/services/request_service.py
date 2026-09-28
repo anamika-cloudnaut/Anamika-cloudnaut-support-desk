@@ -79,6 +79,27 @@ class RequestService:
     def list_team_members(self, active_only: bool = False):
         return self.repository.list_team_members(active_only)
 
+    def create_team_member(self, fields: Dict[str, Any]):
+        if self.repository.get_team_member_by_email(fields["email"]):
+            raise ValueError("An account with this email already exists.")
+        return self.repository.create_team_member(fields)
+
+    def update_team_member(self, member_id: int, fields: Dict[str, Any]):
+        member = self.repository.get_team_member(member_id)
+        if not member:
+            raise LookupError(f"Team member {member_id} not found.")
+        if "email" in fields:
+            existing = self.repository.get_team_member_by_email(fields["email"])
+            if existing and existing.id != member_id:
+                raise ValueError("An account with this email already exists.")
+        will_be_admin = fields.get("role", member.role) == "admin"
+        will_be_active = fields.get("is_active", member.is_active)
+        if member.role == "admin" and member.is_active and (
+            not will_be_admin or not will_be_active
+        ) and self.repository.count_active_admins() <= 1:
+            raise ValueError("At least one active administrator must remain.")
+        return self.repository.update_team_member(member, fields)
+
     def assign_request(self, request_id: int, assignee_id: Optional[int]):
         request = self._get_request(request_id)
         assignee = None
