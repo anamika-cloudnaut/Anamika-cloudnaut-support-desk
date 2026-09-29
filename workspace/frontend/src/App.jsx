@@ -308,6 +308,7 @@ function App() {
 
             <CreateTicketForm
               onSuccess={handleTicketSuccess}
+              user={session.user}
             />
 
           </section>

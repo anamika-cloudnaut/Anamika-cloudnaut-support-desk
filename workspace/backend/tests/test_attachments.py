@@ -13,6 +13,7 @@ import app.main as backend_main
 from app.auth import create_access_token
 from app.routers import attachments as attachment_router
 from app.services.attachment_service import AttachmentService
+from app.services.object_storage import ObjectStorage, ObjectStorageError
 from database.app.database import get_db
 from database.app.models import Base, RequestAttachment, SupportRequest, TeamMember
 
@@ -232,6 +233,21 @@ def test_minio_unavailable_does_not_create_metadata(attachment_setup, monkeypatc
     )
     assert response.status_code == 503
     assert db.query(RequestAttachment).count() == 0
+
+
+def test_minio_connection_errors_are_reported_as_storage_errors():
+    from urllib3.exceptions import MaxRetryError
+
+    class UnreachableMinio:
+        def bucket_exists(self, bucket):
+            raise MaxRetryError(None, "http://minio:9000", OSError("unavailable"))
+
+    storage = ObjectStorage.__new__(ObjectStorage)
+    storage.bucket = "support-attachments"
+    storage.client = UnreachableMinio()
+
+    with pytest.raises(ObjectStorageError):
+        storage.ensure_bucket()
 
 
 def test_attachment_routes_require_authentication(attachment_setup):

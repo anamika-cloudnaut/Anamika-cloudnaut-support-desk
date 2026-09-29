@@ -3,13 +3,17 @@ import re
 import uuid
 from io import BytesIO
 
-from minio.error import MinioException, S3Error
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from database.app.models import RequestAttachment, SupportRequest
-from app.services.object_storage import ObjectStorage, StorageConfigurationError
+from app.services.object_storage import (
+    ObjectNotFoundError,
+    ObjectStorage,
+    ObjectStorageError,
+    StorageConfigurationError,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -151,7 +155,7 @@ class AttachmentService:
             storage = self._get_storage()
             storage.ensure_bucket()
             storage.upload(object_key, content, content_type.lower())
-        except (MinioException, OSError, StorageConfigurationError) as error:
+        except (ObjectStorageError, OSError, StorageConfigurationError) as error:
             raise AttachmentStorageUnavailable(
                 "Attachment storage is unavailable."
             ) from error
@@ -173,7 +177,7 @@ class AttachmentService:
             self.db.rollback()
             try:
                 storage.delete(object_key)
-            except (MinioException, OSError, StorageConfigurationError):
+            except (ObjectStorageError, OSError, StorageConfigurationError):
                 logger.exception(
                     "Failed to clean up MinIO object after attachment metadata failure"
                 )
@@ -197,13 +201,13 @@ class AttachmentService:
         attachment = self._get_attachment(attachment_id, user)
         try:
             content = self._get_storage().download(attachment.object_key)
-        except S3Error as error:
-            if error.code == "NoSuchKey":
-                raise AttachmentNotFound("Attachment content was not found.") from error
+        except ObjectNotFoundError as error:
+            raise AttachmentNotFound("Attachment content was not found.") from error
+        except ObjectStorageError as error:
             raise AttachmentStorageUnavailable(
                 "Attachment storage is unavailable."
             ) from error
-        except (MinioException, OSError, StorageConfigurationError) as error:
+        except (OSError, StorageConfigurationError) as error:
             raise AttachmentStorageUnavailable(
                 "Attachment storage is unavailable."
             ) from error

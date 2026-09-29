@@ -1,14 +1,15 @@
 import { useState } from 'react'
 import { apiFetch } from '../api'
 
-function CreateTicketForm({ onSuccess }) {
-  const [formData, setFormData] = useState({
+function CreateTicketForm({ onSuccess, user }) {
+  const isEmployee = user?.role === 'employee'
+  const [formData, setFormData] = useState(() => ({
     title: '',
     description: '',
-    requester_name: '',
-    requester_email: '',
+    requester_name: isEmployee ? user.name : '',
+    requester_email: isEmployee ? user.email : '',
     category: '',
-  })
+  }))
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -108,6 +109,7 @@ function CreateTicketForm({ onSuccess }) {
               value={formData.requester_name}
               onChange={handleChange}
               maxLength={100}
+              readOnly={isEmployee}
               required
             />
           </div>
@@ -121,6 +123,7 @@ function CreateTicketForm({ onSuccess }) {
               placeholder="you@example.com"
               value={formData.requester_email}
               onChange={handleChange}
+              readOnly={isEmployee}
               required
             />
           </div>
