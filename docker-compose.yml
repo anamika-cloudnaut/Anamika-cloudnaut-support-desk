@@ -51,8 +51,26 @@ services:
       - SMTP_PASSWORD=${SMTP_PASSWORD:-}
       - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL:-}
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_BUCKET=support-attachments
+      - MINIO_SECURE=false
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env before starting}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env before starting}
     depends_on:
       - db
+      - minio
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env before starting}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env before starting}
+    volumes:
+      - minio_data:/data
     networks:
       - app_network
     restart: unless-stopped
@@ -81,3 +99,4 @@ networks:
 
 volumes:
   pgdata:
+  minio_data:
