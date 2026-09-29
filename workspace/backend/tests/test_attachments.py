@@ -1,4 +1,5 @@
 from io import BytesIO
+from zipfile import ZIP_DEFLATED, ZipFile
 
 import pytest
 from fastapi.testclient import TestClient
@@ -12,7 +13,10 @@ import app.auth as auth
 import app.main as backend_main
 from app.auth import create_access_token
 from app.routers import attachments as attachment_router
-from app.services.attachment_service import AttachmentService
+from app.services.attachment_service import (
+    AttachmentDeletionError,
+    AttachmentService,
+)
 from app.services.object_storage import ObjectStorage, ObjectStorageError
 from database.app.database import get_db
 from database.app.models import Base, RequestAttachment, SupportRequest, TeamMember
@@ -41,6 +45,21 @@ def png_bytes():
     image = Image.new("RGB", (2, 2), color="blue")
     content = BytesIO()
     image.save(content, format="PNG")
+    return content.getvalue()
+
+
+def image_bytes(image_format):
+    image = Image.new("RGB", (2, 2), color="blue")
+    content = BytesIO()
+    image.save(content, format=image_format)
+    return content.getvalue()
+
+
+def office_zip_bytes(document_path):
+    content = BytesIO()
+    with ZipFile(content, "w", compression=ZIP_DEFLATED) as archive:
+        archive.writestr("[Content_Types].xml", "<Types/>")
+        archive.writestr(document_path, "<document/>")
     return content.getvalue()
 
 
@@ -147,8 +166,45 @@ def test_upload_list_and_download_attachment(attachment_setup):
     assert downloaded.content == content
 
 
+@pytest.mark.parametrize(
+    ("filename", "content_type", "content"),
+    [
+        ("photo.jpg", "image/jpeg", image_bytes("JPEG")),
+        ("photo.png", "image/png", png_bytes()),
+        ("photo.webp", "image/webp", image_bytes("WEBP")),
+        ("brief.pdf", "application/pdf", b"%PDF-1.7\nminimal test PDF"),
+        ("letter.doc", "application/msword", bytes.fromhex("D0CF11E0A1B11AE1") + b"document"),
+        (
+            "letter.docx",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            office_zip_bytes("word/document.xml"),
+        ),
+        ("budget.xls", "application/vnd.ms-excel", bytes.fromhex("D0CF11E0A1B11AE1") + b"spreadsheet"),
+        (
+            "budget.xlsx",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            office_zip_bytes("xl/workbook.xml"),
+        ),
+        ("table.csv", "text/csv", b"name,value\nitem,1\n"),
+        ("readme.txt", "text/plain", b"plain UTF-8 text\n"),
+    ],
+)
+def test_supported_attachment_formats(
+    attachment_setup, filename, content_type, content
+):
+    client, _, _, headers = attachment_setup
+    response = client.post(
+        "/internal/requests/1/attachments",
+        headers=headers,
+        files={"file": (filename, content, content_type)},
+    )
+    assert response.status_code == 201, response.text
+    assert response.json()["original_filename"] == filename
+    assert response.json()["content_type"] == content_type
+
+
 def test_attachment_access_is_limited_to_request_owner(attachment_setup):
-    client, _, storage, headers = attachment_setup
+    client, db, storage, headers = attachment_setup
     response = client.get("/internal/requests/2/attachments", headers=headers)
     assert response.status_code == 404
 
@@ -159,6 +215,32 @@ def test_attachment_access_is_limited_to_request_owner(attachment_setup):
     )
     assert upload.status_code == 404
     assert storage.objects == {}
+
+    uploaded = client.post(
+        "/internal/requests/1/attachments",
+        headers=headers,
+        files={"file": ("photo.png", png_bytes(), "image/png")},
+    )
+    attachment_id = uploaded.json()["id"]
+    denied = client.delete(
+        f"/internal/attachments/{attachment_id}",
+        headers={"Authorization": "Bearer invalid"},
+    )
+    assert denied.status_code == 401
+    other = db.query(TeamMember).filter_by(email="other@example.com").one()
+    other_headers = {
+        "Authorization": f"Bearer {create_access_token(other)}",
+    }
+    cross_ticket_denied = client.delete(
+        f"/internal/attachments/{attachment_id}",
+        headers=other_headers,
+    )
+    assert cross_ticket_denied.status_code == 404
+    assert next(iter(storage.objects))
+    assert client.get(
+        f"/internal/attachments/{attachment_id}",
+        headers={"Authorization": "Bearer invalid"},
+    ).status_code == 401
 
 
 def test_upload_requires_an_existing_request(attachment_setup):
@@ -176,8 +258,9 @@ def test_upload_requires_an_existing_request(attachment_setup):
     ("filename", "content", "content_type", "expected_status"),
     [
         ("empty.png", b"", "image/png", 400),
-        ("text.txt", b"plain text", "text/plain", 415),
+        ("program.exe", b"plain text", "application/octet-stream", 415),
         ("fake.png", b"not an image", "image/png", 400),
+        ("binary.txt", b"not\x00text", "text/plain", 400),
         ("large.png", b"x" * (5 * 1024 * 1024 + 1), "image/png", 413),
     ],
 )
@@ -248,6 +331,53 @@ def test_minio_connection_errors_are_reported_as_storage_errors():
 
     with pytest.raises(ObjectStorageError):
         storage.ensure_bucket()
+
+
+def test_delete_attachment_removes_object_and_metadata(attachment_setup):
+    client, db, storage, headers = attachment_setup
+    uploaded = client.post(
+        "/internal/requests/1/attachments",
+        headers=headers,
+        files={"file": ("photo.png", png_bytes(), "image/png")},
+    )
+    attachment_id = uploaded.json()["id"]
+    object_key = next(iter(storage.objects))
+
+    response = client.delete(
+        f"/internal/attachments/{attachment_id}",
+        headers=headers,
+    )
+
+    assert response.status_code == 204
+    assert object_key not in storage.objects
+    assert db.query(RequestAttachment).filter_by(id=attachment_id).first() is None
+
+
+def test_delete_restores_object_if_metadata_commit_fails(
+    attachment_setup, monkeypatch
+):
+    client, db, storage, headers = attachment_setup
+    uploaded = client.post(
+        "/internal/requests/1/attachments",
+        headers=headers,
+        files={"file": ("photo.png", png_bytes(), "image/png")},
+    )
+    attachment_id = uploaded.json()["id"]
+    object_key = next(iter(storage.objects))
+    original_content = storage.objects[object_key][0]
+
+    def fail_commit():
+        raise SQLAlchemyError("database unavailable")
+
+    monkeypatch.setattr(db, "commit", fail_commit)
+    response = client.delete(
+        f"/internal/attachments/{attachment_id}",
+        headers=headers,
+    )
+
+    assert response.status_code == 500
+    assert storage.objects[object_key][0] == original_content
+    assert db.query(RequestAttachment).filter_by(id=attachment_id).first() is not None
 
 
 def test_attachment_routes_require_authentication(attachment_setup):

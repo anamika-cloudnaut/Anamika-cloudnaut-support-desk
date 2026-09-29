@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.auth import require_roles
 from app.services.attachment_service import (
     AttachmentNotFound,
+    AttachmentDeletionError,
     AttachmentPersistenceError,
     AttachmentService,
     AttachmentStorageUnavailable,
@@ -37,6 +38,8 @@ def raise_attachment_error(error: Exception):
     if isinstance(error, AttachmentStorageUnavailable):
         raise HTTPException(status_code=503, detail=str(error)) from error
     if isinstance(error, AttachmentPersistenceError):
+        raise HTTPException(status_code=500, detail=str(error)) from error
+    if isinstance(error, AttachmentDeletionError):
         raise HTTPException(status_code=500, detail=str(error)) from error
     raise error
 
@@ -112,3 +115,22 @@ def download_request_attachment(
             "X-Content-Type-Options": "nosniff",
         },
     )
+
+
+@router.delete(
+    "/internal/attachments/{attachment_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_request_attachment(
+    attachment_id: int,
+    db: Session = Depends(get_db),
+    user=Depends(require_roles(*ATTACHMENT_ROLES)),
+):
+    try:
+        get_attachment_service(db).delete(attachment_id, user)
+    except (
+        AttachmentDeletionError,
+        AttachmentNotFound,
+        AttachmentStorageUnavailable,
+    ) as error:
+        raise_attachment_error(error)

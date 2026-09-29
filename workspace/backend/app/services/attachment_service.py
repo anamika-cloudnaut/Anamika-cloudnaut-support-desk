@@ -2,6 +2,7 @@ import logging
 import re
 import uuid
 from io import BytesIO
+from zipfile import BadZipFile, ZipFile
 
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy.exc import SQLAlchemyError
@@ -18,11 +19,30 @@ from app.services.object_storage import (
 
 logger = logging.getLogger(__name__)
 MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024
-IMAGE_TYPES = {
-    "image/jpeg": ("JPEG", ".jpg"),
-    "image/png": ("PNG", ".png"),
-    "image/webp": ("WEBP", ".webp"),
+SUPPORTED_FILES = {
+    ".jpg": {"image/jpeg"},
+    ".jpeg": {"image/jpeg"},
+    ".png": {"image/png"},
+    ".webp": {"image/webp"},
+    ".pdf": {"application/pdf"},
+    ".doc": {"application/msword"},
+    ".docx": {
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    },
+    ".xls": {"application/vnd.ms-excel"},
+    ".xlsx": {
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    },
+    ".csv": {"text/csv", "application/csv", "application/vnd.ms-excel"},
+    ".txt": {"text/plain"},
 }
+IMAGE_FORMATS = {
+    ".jpg": "JPEG",
+    ".jpeg": "JPEG",
+    ".png": "PNG",
+    ".webp": "WEBP",
+}
+OLE_SIGNATURE = bytes.fromhex("D0CF11E0A1B11AE1")
 
 
 class AttachmentError(Exception):
@@ -53,6 +73,10 @@ class AttachmentPersistenceError(AttachmentError):
     pass
 
 
+class AttachmentDeletionError(AttachmentError):
+    pass
+
+
 def safe_filename(filename: str | None) -> str:
     name = (filename or "").replace("\\", "/").rsplit("/", 1)[-1]
     name = re.sub(r"[\x00-\x1f\x7f]", "", name).strip()
@@ -72,34 +96,78 @@ class AttachmentService:
         return self.storage
 
     @staticmethod
-    def validate_file(content: bytes, content_type: str):
+    def validate_file(filename: str | None, content: bytes, content_type: str):
         if not content:
             raise InvalidAttachment("Empty files are not allowed.")
         if len(content) > MAX_ATTACHMENT_SIZE:
             raise AttachmentTooLarge("Files must be 5 MB or smaller.")
-        expected = IMAGE_TYPES.get(content_type.lower())
-        if not expected:
+        sanitized_filename = safe_filename(filename)
+        suffix = sanitized_filename.rsplit(".", 1)[-1].lower()
+        extension = f".{suffix}" if "." in sanitized_filename else ""
+        allowed_mime_types = SUPPORTED_FILES.get(extension)
+        declared_type = (content_type or "").split(";", 1)[0].strip().lower()
+        if not allowed_mime_types:
             raise UnsupportedAttachmentType(
-                "Only JPEG, PNG, and WebP images are supported."
+                "This file extension is not supported."
+            )
+        if declared_type not in allowed_mime_types:
+            raise UnsupportedAttachmentType(
+                "The file content type does not match its extension."
             )
 
-        try:
-            with Image.open(BytesIO(content)) as image:
-                image_format = image.format
-                image.verify()
-        except (
-            Image.DecompressionBombError,
-            UnidentifiedImageError,
-            OSError,
-            ValueError,
-        ) as error:
-            raise InvalidAttachment("The uploaded file is not a valid image.") from error
-
-        if image_format != expected[0]:
-            raise UnsupportedAttachmentType(
-                "The image content does not match its declared content type."
+        if extension in IMAGE_FORMATS:
+            try:
+                with Image.open(BytesIO(content)) as image:
+                    image_format = image.format
+                    image.verify()
+            except (
+                Image.DecompressionBombError,
+                UnidentifiedImageError,
+                OSError,
+                ValueError,
+            ) as error:
+                raise InvalidAttachment("The uploaded file is not a valid image.") from error
+            if image_format != IMAGE_FORMATS[extension]:
+                raise InvalidAttachment(
+                    "The image content does not match its file extension."
+                )
+        elif extension == ".pdf":
+            if not content.startswith(b"%PDF-"):
+                raise InvalidAttachment("The uploaded file is not a valid PDF.")
+        elif extension in {".docx", ".xlsx"}:
+            try:
+                with ZipFile(BytesIO(content)) as archive:
+                    entries = set(archive.namelist())
+            except (BadZipFile, OSError) as error:
+                raise InvalidAttachment(
+                    "The uploaded Office document is not a valid file."
+                ) from error
+            required_entries = (
+                {"[Content_Types].xml", "word/document.xml"}
+                if extension == ".docx"
+                else {"[Content_Types].xml", "xl/workbook.xml"}
             )
-        return expected[1]
+            if not required_entries.issubset(entries):
+                raise InvalidAttachment(
+                    "The Office document content does not match its extension."
+                )
+        elif extension in {".doc", ".xls"}:
+            if not content.startswith(OLE_SIGNATURE):
+                raise InvalidAttachment(
+                    "The legacy Office document has an invalid file signature."
+                )
+        else:
+            try:
+                text = content.decode("utf-8-sig")
+            except UnicodeDecodeError as error:
+                raise InvalidAttachment(
+                    "CSV and TXT files must contain valid UTF-8 text."
+                ) from error
+            if "\x00" in text:
+                raise InvalidAttachment(
+                    "CSV and TXT files cannot contain binary data."
+                )
+        return extension
 
     def _get_request(self, request_id: int, user: dict) -> SupportRequest:
         request = (
@@ -148,7 +216,7 @@ class AttachmentService:
         content: bytes,
     ) -> dict:
         request = self._get_request(request_id, user)
-        extension = self.validate_file(content, content_type)
+        extension = self.validate_file(filename, content, content_type)
         object_key = f"requests/{request.id}/{uuid.uuid4().hex}{extension}"
 
         try:
@@ -212,3 +280,42 @@ class AttachmentService:
                 "Attachment storage is unavailable."
             ) from error
         return attachment, content
+
+    def delete(self, attachment_id: int, user: dict):
+        attachment = self._get_attachment(attachment_id, user)
+        storage = self._get_storage()
+        try:
+            original_content = storage.download(attachment.object_key)
+        except ObjectNotFoundError:
+            original_content = None
+        except ObjectStorageError as error:
+            raise AttachmentStorageUnavailable(
+                "Attachment storage is unavailable."
+            ) from error
+
+        try:
+            storage.delete(attachment.object_key)
+        except ObjectStorageError as error:
+            raise AttachmentStorageUnavailable(
+                "Could not delete the attachment from storage."
+            ) from error
+
+        try:
+            self.db.delete(attachment)
+            self.db.commit()
+        except SQLAlchemyError as error:
+            self.db.rollback()
+            if original_content is not None:
+                try:
+                    storage.upload(
+                        attachment.object_key,
+                        original_content,
+                        attachment.content_type,
+                    )
+                except ObjectStorageError:
+                    logger.exception(
+                        "Could not restore MinIO object after attachment metadata deletion failed"
+                    )
+            raise AttachmentDeletionError(
+                "Could not delete attachment metadata."
+            ) from error

@@ -1,4 +1,13 @@
-function TicketSuccess({ ticket, onCreateAnother, onGoHome }) {
+import TicketAttachments from './TicketAttachments'
+
+function TicketSuccess({
+  ticket,
+  user,
+  pendingFiles,
+  attachmentErrors,
+  onCreateAnother,
+  onGoHome,
+}) {
   const formatDate = (value) => {
     if (!value) return 'Not provided'
 
@@ -105,6 +114,24 @@ function TicketSuccess({ ticket, onCreateAnother, onGoHome }) {
           </div>
 
         </div>
+
+        {attachmentErrors?.length > 0 && (
+          <div className="error-box attachment-upload-warning" role="alert">
+            <strong>Ticket created, but some attachments were not uploaded</strong>
+            <span>Your ticket is safe. Retry the remaining files below.</span>
+            {attachmentErrors.map((message, index) => (
+              <span key={`${message}-${index}`}>{message}</span>
+            ))}
+          </div>
+        )}
+
+        {user && (
+          <TicketAttachments
+            key={ticket.id}
+            requestId={ticket.id}
+            initialFiles={pendingFiles || []}
+          />
+        )}
 
         <div className="success-actions">
           <button

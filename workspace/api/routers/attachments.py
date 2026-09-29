@@ -127,3 +127,18 @@ async def download_request_attachment(
         media_type=response.headers.get("content-type", "application/octet-stream"),
         headers=headers,
     )
+
+
+@router.delete(
+    "/attachments/{attachment_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_request_attachment(
+    attachment_id: int,
+    user=Depends(require_roles(*ATTACHMENT_ROLES)),
+):
+    await backend_attachment_request(
+        "DELETE",
+        f"/internal/attachments/{attachment_id}",
+        access_token=user["token"],
+    )
