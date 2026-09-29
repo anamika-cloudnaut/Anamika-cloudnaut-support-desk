@@ -203,13 +203,35 @@ function App() {
                 <span className="button-arrow">→</span>
               </button>
 
-              <button
-                className="secondary-button"
-                onClick={() => setShowDashboard(true)}
-              >
-                <span>View Dashboard</span>
-                <span className="button-arrow">→</span>
-              </button>
+              {(session.user.role === 'support' || session.user.role === 'admin') && (
+                <button
+                  className="secondary-button"
+                  onClick={() => setShowDashboard(true)}
+                >
+                  <span>View Dashboard</span>
+                  <span className="button-arrow">→</span>
+                </button>
+              )}
+
+              {session.user.role === 'admin' && (
+                <button
+                  className="secondary-button"
+                  onClick={() => setShowTeam(true)}
+                >
+                  <span>Manage Staff Access</span>
+                  <span className="button-arrow">→</span>
+                </button>
+              )}
+
+              {session.user.role === 'admin' && (
+                <button
+                  className="secondary-button"
+                  onClick={() => setShowAccessRequests(true)}
+                >
+                  <span>Access Requests</span>
+                  <span className="button-arrow">→</span>
+                </button>
+              )}
             </div>
 
             <div className="feature-grid">
@@ -354,7 +376,7 @@ function App() {
           </section>
         )}
 
-        {session && showDashboard && (
+        {session && showDashboard && (session.user.role === 'support' || session.user.role === 'admin') && (
           <section className="ticket-form-card">
 
             <div className="form-header">
