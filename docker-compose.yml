@@ -64,7 +64,10 @@ services:
     restart: unless-stopped
 
   minio:
-    image: minio/minio:latest
+    image: cloudnaut-minio:local
+    build:
+      context: ./workspace/minio
+      dockerfile: Dockerfile
     command: server /data --console-address ":9001"
     environment:
       - MINIO_ROOT_USER=${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env before starting}
