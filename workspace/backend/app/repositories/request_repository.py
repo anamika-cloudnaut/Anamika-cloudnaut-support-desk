@@ -246,9 +246,10 @@ class RequestRepository:
             .all()
         )
         assignee_counts = dict(
-            self.db.query(SupportRequest.assigned_to, func.count(SupportRequest.id))
+            self.db.query(TeamMember.name, func.count(SupportRequest.id))
+            .join(TeamMember, SupportRequest.assigned_to == TeamMember.id)
             .filter(SupportRequest.assigned_to.isnot(None))
-            .group_by(SupportRequest.assigned_to)
+            .group_by(TeamMember.name)
             .all()
         )
         return {

@@ -6,6 +6,7 @@ from routers.requests import (
     team_router,
     dashboard_router,
 )
+from routers.attachments import router as attachments_router
 
 
 app = FastAPI(
@@ -46,5 +47,6 @@ def health_check():
 # ---------------------------------------------------------
 
 app.include_router(requests_router)
+app.include_router(attachments_router)
 app.include_router(team_router)
 app.include_router(dashboard_router)

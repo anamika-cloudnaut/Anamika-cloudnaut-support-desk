@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { apiFetch } from '../api'
+import TicketAttachments from './TicketAttachments'
 
 // Allowed next statuses per the sprint brief's transition table.
 const STATUS_TRANSITIONS = {
@@ -223,6 +224,8 @@ function TicketDetail({ ticketId, onBack, user }) {
           <span>{actionError}</span>
         </div>
       )}
+
+      <TicketAttachments requestId={ticketId} />
 
       {user.role !== 'employee' && <div className="form-row">
         <div className="form-group">

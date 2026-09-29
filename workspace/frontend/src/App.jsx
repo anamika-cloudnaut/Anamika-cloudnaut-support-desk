@@ -34,18 +34,26 @@ function App() {
   const [showRequestTracker, setShowRequestTracker] = useState(false)
   const [selectedTicketId, setSelectedTicketId] = useState(null)
   const [createdTicket, setCreatedTicket] = useState(null)
+  const [failedTicketAttachments, setFailedTicketAttachments] = useState([])
+  const [attachmentUploadErrors, setAttachmentUploadErrors] = useState([])
 
-  const handleTicketSuccess = (ticket) => {
+  const handleTicketSuccess = (ticket, failedFiles = [], uploadErrors = []) => {
     setCreatedTicket(ticket)
+    setFailedTicketAttachments(failedFiles)
+    setAttachmentUploadErrors(uploadErrors)
   }
 
   const handleCreateAnother = () => {
     setCreatedTicket(null)
+    setFailedTicketAttachments([])
+    setAttachmentUploadErrors([])
     setShowForm(false)
   }
 
   const goHome = () => {
     setCreatedTicket(null)
+    setFailedTicketAttachments([])
+    setAttachmentUploadErrors([])
     setShowForm(false)
     setShowList(false)
     setShowDashboard(false)
@@ -80,6 +88,9 @@ function App() {
       <div className="app-shell">
         <TicketSuccess
           ticket={createdTicket}
+          user={session?.user}
+          pendingFiles={failedTicketAttachments}
+          attachmentErrors={attachmentUploadErrors}
           onCreateAnother={handleCreateAnother}
           onGoHome={goHome}
         />
@@ -203,13 +214,35 @@ function App() {
                 <span className="button-arrow">→</span>
               </button>
 
-              <button
-                className="secondary-button"
-                onClick={() => setShowDashboard(true)}
-              >
-                <span>View Dashboard</span>
-                <span className="button-arrow">→</span>
-              </button>
+              {(session.user.role === 'support' || session.user.role === 'admin') && (
+                <button
+                  className="secondary-button"
+                  onClick={() => setShowDashboard(true)}
+                >
+                  <span>View Dashboard</span>
+                  <span className="button-arrow">→</span>
+                </button>
+              )}
+
+              {session.user.role === 'admin' && (
+                <button
+                  className="secondary-button"
+                  onClick={() => setShowTeam(true)}
+                >
+                  <span>Manage Staff Access</span>
+                  <span className="button-arrow">→</span>
+                </button>
+              )}
+
+              {session.user.role === 'admin' && (
+                <button
+                  className="secondary-button"
+                  onClick={() => setShowAccessRequests(true)}
+                >
+                  <span>Access Requests</span>
+                  <span className="button-arrow">→</span>
+                </button>
+              )}
             </div>
 
             <div className="feature-grid">
@@ -286,6 +319,7 @@ function App() {
 
             <CreateTicketForm
               onSuccess={handleTicketSuccess}
+              user={session.user}
             />
 
           </section>
@@ -354,7 +388,7 @@ function App() {
           </section>
         )}
 
-        {session && showDashboard && (
+        {session && showDashboard && (session.user.role === 'support' || session.user.role === 'admin') && (
           <section className="ticket-form-card">
 
             <div className="form-header">
