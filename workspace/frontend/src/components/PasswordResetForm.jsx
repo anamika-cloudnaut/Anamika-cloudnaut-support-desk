@@ -44,11 +44,11 @@ function PasswordResetForm({ token, onComplete }) {
         <form className="ticket-form" onSubmit={handleSubmit}>
           <div className="form-group">
             <label htmlFor="new-password">New password</label>
-            <input id="new-password" type="password" autoComplete="new-password" minLength="12" maxLength="200" required value={password} onChange={(event) => setPassword(event.target.value)} />
+            <input id="new-password" type="password" autoComplete="new-password" minLength="6" maxLength="200" required value={password} onChange={(event) => setPassword(event.target.value)} />
           </div>
           <div className="form-group">
             <label htmlFor="confirm-password">Confirm new password</label>
-            <input id="confirm-password" type="password" autoComplete="new-password" minLength="12" maxLength="200" required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} />
+            <input id="confirm-password" type="password" autoComplete="new-password" minLength="6" maxLength="200" required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} />
           </div>
           {error && <div className="error-box"><strong>Unable to reset password</strong><span>{error}</span></div>}
           <button type="submit" className="submit-button" disabled={submitting}>{submitting ? 'Updating...' : 'Update password'}</button>

@@ -37,9 +37,11 @@ def send_password_reset_email(email, name, token):
         f"It expires in 30 minutes and can only be used once:\n\n{reset_url}\n"
     )
 
+    smtp_use_tls = os.getenv("SMTP_USE_TLS", "false").lower() == "true"
+
     smtp_class = smtplib.SMTP_SSL if smtp_port == 465 else smtplib.SMTP
     with smtp_class(smtp_host, smtp_port, timeout=10) as smtp:
-        if smtp_port != 465:
+        if smtp_use_tls:
             smtp.starttls()
         username = os.getenv("SMTP_USERNAME")
         if username:
@@ -113,16 +115,15 @@ def forgot_password(payload: Dict[str, Any], db: Session = Depends(get_db)):
             token_record.used_at = datetime.now(timezone.utc)
             db.commit()
 
-    return {"message": "If an active account uses that email, password reset instructions have been sent."}
+    return {"message": "If an active user uses that email, password reset instructions have been sent."}
 
 
 @app.post("/internal/auth/reset-password")
 def reset_password(payload: Dict[str, Any], db: Session = Depends(get_db)):
     raw_token = payload.get("token")
     password = payload.get("password")
-    if not isinstance(raw_token, str) or not raw_token or not isinstance(password, str) or len(password) < 12:
-        raise HTTPException(status_code=400, detail="A valid reset token and a password of at least 12 characters are required.")
-
+    if not isinstance(raw_token, str) or not raw_token or not isinstance(password, str) or len(password) < 6:
+        raise HTTPException(status_code=400, detail="A valid reset token and a password of at least 6 characters are required.")
     token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
     token_record = db.query(PasswordResetToken).filter(PasswordResetToken.token_hash == token_hash).first()
     now = datetime.now(timezone.utc)

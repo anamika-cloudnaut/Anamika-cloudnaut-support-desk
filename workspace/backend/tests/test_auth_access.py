@@ -221,6 +221,12 @@ def test_password_reset_token_is_hashed_expires_and_is_single_use(monkeypatch):
         token_record = db.query(PasswordResetToken).one()
         assert token_record.token_hash != sent["token"]
 
+        short_password = client.post(
+            "/internal/auth/reset-password",
+            json={"token": sent["token"], "password": "abcde"},
+        )
+        assert short_password.status_code == 400
+
         reset = client.post(
             "/internal/auth/reset-password",
             json={"token": sent["token"], "password": "NewPassword-2026!"},
