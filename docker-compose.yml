@@ -6,7 +6,7 @@ services:
       - "5432:5432"
     environment:
       - POSTGRES_USER=cloudnaut
-      - POSTGRES_PASSWORD=cloudnaut_pass
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env before starting}
       - POSTGRES_DB=cloudnaut_db
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -42,7 +42,7 @@ services:
       dockerfile: workspace/backend/Dockerfile
     container_name: app_backend
     environment:
-      - DATABASE_URL=postgresql+psycopg2://cloudnaut:cloudnaut_pass@db:5432/cloudnaut_db
+      - DATABASE_URL=postgresql+psycopg2://cloudnaut:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env before starting}@db:5432/cloudnaut_db
       - API_SERVICE_URL=http://api:4000
       - AUTH_SECRET_KEY=${AUTH_SECRET_KEY:?Set AUTH_SECRET_KEY in .env before starting}
       - SMTP_HOST=${SMTP_HOST:-}
@@ -51,8 +51,29 @@ services:
       - SMTP_PASSWORD=${SMTP_PASSWORD:-}
       - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL:-}
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_BUCKET=support-attachments
+      - MINIO_SECURE=false
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env before starting}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env before starting}
     depends_on:
       - db
+      - minio
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  minio:
+    image: cloudnaut-minio:local
+    build:
+      context: ./workspace/minio
+      dockerfile: Dockerfile
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env before starting}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env before starting}
+    volumes:
+      - minio_data:/data
     networks:
       - app_network
     restart: unless-stopped
@@ -81,3 +102,4 @@ networks:
 
 volumes:
   pgdata:
+  minio_data:

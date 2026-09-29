@@ -12,10 +12,12 @@ from sqlalchemy.orm import Session
 from typing import Any, Dict
 
 from app.auth import create_access_token, get_current_user, hash_password, require_roles, verify_password
+from app.routers.attachments import router as attachments_router
 from database.app.database import get_db
 from database.app.models import AccessRequest, PasswordResetToken, TeamMember
 
 app = FastAPI(title="Cloudnaut Support Desk Backend Service")
+app.include_router(attachments_router)
 logger = logging.getLogger(__name__)
 
 

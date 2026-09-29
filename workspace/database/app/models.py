@@ -77,6 +77,7 @@ class SupportRequest(Base):
     notes = relationship(
         "TicketNote", back_populates="request", cascade="all, delete-orphan"
     )
+    attachments = relationship("RequestAttachment", back_populates="request")
 
 
 class HistoryEvent(Base):
@@ -109,3 +110,31 @@ class TicketNote(Base):
     is_public = Column(Boolean, nullable=False, default=False, server_default="false")
 
     request = relationship("SupportRequest", back_populates="notes")
+
+
+class RequestAttachment(Base):
+    __tablename__ = "request_attachments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    request_id = Column(
+        Integer,
+        ForeignKey("support_requests.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    uploaded_by_id = Column(
+        Integer,
+        ForeignKey("team_members.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    original_filename = Column(String(255), nullable=False)
+    object_key = Column(String(512), nullable=False, unique=True)
+    content_type = Column(String(100), nullable=False)
+    size_bytes = Column(Integer, nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    request = relationship("SupportRequest", back_populates="attachments")
+    uploaded_by = relationship("TeamMember")

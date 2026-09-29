@@ -1500,6 +1500,198 @@ textarea:focus-visible {
   font-size: 12px;
 }
 
+.attachment-picker,
+.ticket-attachments {
+  display: grid;
+  gap: 14px;
+  text-align: left;
+}
+
+.attachment-picker-heading h3,
+.ticket-attachments h3 {
+  margin: 0 0 5px;
+  color: #e5eefc;
+  font-size: 16px;
+}
+
+.attachment-picker-heading p {
+  margin: 0;
+  color: #91a6bf;
+  font-size: 12px;
+}
+
+.attachment-dropzone {
+  position: relative;
+  min-height: 132px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  overflow: hidden;
+  border: 1px dashed rgba(96, 165, 250, 0.48);
+  border-radius: 14px;
+  background: rgba(15, 38, 62, 0.45);
+  color: #cbd9e9;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+
+.attachment-dropzone:hover,
+.attachment-dropzone.is-dragging {
+  border-color: #60a5fa;
+  background: rgba(30, 64, 103, 0.42);
+}
+
+.attachment-dropzone-icon {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: rgba(59, 130, 246, 0.17);
+  color: #93c5fd;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.attachment-dropzone small {
+  color: #8197af;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.attachment-dropzone input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.selected-attachments {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.selected-attachments li {
+  min-width: 0;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 11px;
+  background: rgba(15, 30, 48, 0.55);
+  text-align: left;
+}
+
+.selected-attachment-icon {
+  flex: 0 0 auto;
+}
+
+.selected-attachment-info,
+.attachment-metadata {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: grid;
+  gap: 3px;
+  overflow-wrap: anywhere;
+}
+
+.selected-attachment-info strong,
+.attachment-metadata strong {
+  color: #dbe7f5;
+  font-size: 12px;
+}
+
+.selected-attachment-info small,
+.attachment-metadata small {
+  color: #8197af;
+  font-size: 11px;
+}
+
+.remove-attachment-button {
+  flex: 0 0 auto;
+  padding: 7px 10px;
+  border: 1px solid rgba(248, 113, 113, 0.24);
+  border-radius: 8px;
+  background: rgba(127, 29, 29, 0.16);
+  color: #fca5a5;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.remove-attachment-button:hover:not(:disabled) {
+  background: rgba(127, 29, 29, 0.3);
+}
+
+.remove-attachment-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.selected-attachments-form {
+  gap: 12px;
+}
+
+.attachment-list li {
+  align-items: center;
+}
+
+.attachment-actions {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.attachment-actions .secondary-button {
+  min-height: 34px;
+  padding: 7px 10px;
+}
+
+.attachment-preview {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 12px;
+  background: rgba(15, 30, 48, 0.55);
+}
+
+.attachment-preview img,
+.attachment-preview iframe {
+  display: block;
+  width: 100%;
+  max-height: 420px;
+  border: 0;
+  object-fit: contain;
+}
+
+.attachment-preview iframe {
+  height: 420px;
+  background: #fff;
+}
+
+.attachment-preview figcaption {
+  margin-top: 8px;
+  color: #91a6bf;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.attachment-upload-warning {
+  margin: 20px 0;
+  text-align: left;
+}
+
 /* LIST, DASHBOARD, AND DETAIL */
 
 .ticket-list-container,
@@ -2080,6 +2272,14 @@ textarea:focus-visible {
   .notes-list li,
   .history-list li {
     flex-direction: column;
+  }
+
+  .attachment-list li {
+    align-items: stretch;
+  }
+
+  .attachment-actions {
+    justify-content: flex-start;
     gap: 6px;
   }
 
