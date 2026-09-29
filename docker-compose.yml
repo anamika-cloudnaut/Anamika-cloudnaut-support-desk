@@ -59,7 +59,6 @@ services:
       - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env before starting}
     depends_on:
       - db
-      - HEAD
       - mailpit
       - minio
     networks:
