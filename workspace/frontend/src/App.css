@@ -2295,3 +2295,316 @@ textarea:focus-visible {
     padding: 25px 15px;
   }
 }
+
+/* ---------------------------------------------------------
+   Dashboard: live meta, charts, sparkline
+   --------------------------------------------------------- */
+
+.dashboard-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  font-size: 12.5px;
+  color: #9fb4ca;
+}
+
+.dashboard-live-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #34d399;
+  box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.6);
+  animation: dashboard-pulse 2s infinite;
+}
+
+@keyframes dashboard-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.5); }
+  70% { box-shadow: 0 0 0 7px rgba(52, 211, 153, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+}
+
+.dashboard-stale {
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.chart-card {
+  background: rgba(10, 22, 38, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 14px;
+  padding: 16px 18px;
+}
+
+.chart-title {
+  margin: 0 0 14px;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: #c6d6ea;
+}
+
+.chart-empty {
+  margin: 0;
+  color: #7f93a9;
+  font-size: 13px;
+}
+
+.bar-chart {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.bar-row {
+  display: grid;
+  grid-template-columns: 110px 1fr 42px;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+}
+
+.bar-label {
+  color: #b7c7da;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bar-track {
+  display: block;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.14);
+  overflow: hidden;
+}
+
+.bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #38bdf8, #6366f1);
+  transition: width 0.5s ease;
+}
+
+.bar-value {
+  text-align: right;
+  color: #eaf2ff;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Status-themed bars */
+.bar-fill-open { background: linear-gradient(90deg, #34d399, #10b981); }
+.bar-fill-in-progress { background: linear-gradient(90deg, #38bdf8, #0ea5e9); }
+.bar-fill-blocked { background: linear-gradient(90deg, #f87171, #ef4444); }
+.bar-fill-resolved { background: linear-gradient(90deg, #a78bfa, #8b5cf6); }
+
+/* Priority-themed bars */
+.bar-fill-critical { background: linear-gradient(90deg, #f87171, #dc2626); }
+.bar-fill-high { background: linear-gradient(90deg, #fb923c, #f97316); }
+.bar-fill-medium { background: linear-gradient(90deg, #fbbf24, #f59e0b); }
+.bar-fill-low { background: linear-gradient(90deg, #34d399, #10b981); }
+
+.sparkline {
+  width: 100%;
+  height: 80px;
+  display: block;
+}
+
+.sparkline-area {
+  fill: rgba(56, 189, 248, 0.16);
+}
+
+.sparkline-line {
+  stroke: #38bdf8;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sparkline-dot {
+  fill: #38bdf8;
+}
+
+.sparkline-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 11.5px;
+  color: #7f93a9;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------
+   Dashboard interactivity: clickable KPI cards, bars, trend
+   --------------------------------------------------------- */
+
+.dashboard-hint {
+  margin: 0 0 16px;
+  font-size: 12.5px;
+  color: #8ba0b6;
+}
+
+/* KPI cards rendered as buttons: keep the feature-item look, add affordance */
+.kpi-card {
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(10, 22, 38, 0.6);
+  transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.kpi-card:hover,
+.kpi-card:focus-visible {
+  transform: translateY(-2px);
+  border-color: rgba(56, 189, 248, 0.55);
+  box-shadow: 0 8px 24px rgba(2, 12, 27, 0.45);
+  outline: none;
+}
+
+.kpi-card:active {
+  transform: translateY(0);
+}
+
+/* Clickable bar rows */
+.bar-row-button {
+  display: contents;
+  cursor: pointer;
+  background: none;
+  border: none;
+  font: inherit;
+  color: inherit;
+  padding: 0;
+  text-align: left;
+}
+
+.bar-row-clickable .bar-track {
+  cursor: pointer;
+}
+
+.bar-row-clickable:hover .bar-track,
+.bar-row-button:focus-visible + .bar-track {
+  background: rgba(56, 189, 248, 0.22);
+}
+
+.bar-row-clickable:hover .bar-label {
+  color: #eaf2ff;
+}
+
+.bar-row-selected .bar-label {
+  color: #7dd3fc;
+  font-weight: 600;
+}
+
+.bar-row-selected .bar-track {
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.6);
+  border-radius: 999px;
+}
+
+/* Readable, clickable trend-day axis */
+.trend-days {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.trend-day,
+.trend-day-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 7px 4px;
+  border-radius: 9px;
+  background: rgba(148, 163, 184, 0.08);
+  border: 1px solid transparent;
+  width: 100%;
+  font: inherit;
+  color: inherit;
+}
+
+.trend-day-button {
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.trend-day-button:hover,
+.trend-day-button:focus-visible {
+  background: rgba(56, 189, 248, 0.18);
+  border-color: rgba(56, 189, 248, 0.5);
+  outline: none;
+}
+
+.trend-day-selected .trend-day-button,
+.trend-day.trend-day-selected {
+  background: rgba(56, 189, 248, 0.22);
+  border-color: rgba(56, 189, 248, 0.7);
+}
+
+.trend-day-weekday {
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: #8ba0b6;
+  text-transform: uppercase;
+}
+
+.trend-day-count {
+  font-size: 16px;
+  font-weight: 700;
+  color: #eaf2ff;
+  font-variant-numeric: tabular-nums;
+}
+
+.trend-day-date {
+  font-size: 10px;
+  color: #7f93a9;
+  font-variant-numeric: tabular-nums;
+}
+
+.sparkline-dot-selected {
+  fill: #f8fafc;
+  stroke: #38bdf8;
+  stroke-width: 2;
+}
+
+/* Drill-down header + back action */
+.drill-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.drill-back {
+  width: auto;
+  height: auto;
+  min-height: 38px;
+  padding: 8px 14px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.drill-title {
+  margin: 2px 0 2px;
+}
+
+.drill-subtitle {
+  margin: 0;
+  font-size: 12.5px;
+  color: #8ba0b6;
+}

@@ -248,8 +248,11 @@ def list_internal_team_members(
 def list_internal_requests(
     status_filter: str | None = Query(default=None, alias="status"),
     assigned_to: int | None = None,
+    assignment: str | None = None,
     category: str | None = None,
     priority: str | None = None,
+    created_from: str | None = None,
+    created_to: str | None = None,
     sort_by: str = Query(default="created_at"),
     sort_order: str = Query(default="desc"),
     db: Session = Depends(get_db),
@@ -263,8 +266,11 @@ def list_internal_requests(
         requests = RequestService(repository).list_requests(
             status=status_filter,
             assigned_to=assigned_to,
+            assignment=assignment,
             category=category,
             priority=priority,
+            created_from=created_from,
+            created_to=created_to,
             requester_email=user["email"] if user["role"] == "employee" else None,
             sort_by=sort_by,
             sort_order=sort_order,

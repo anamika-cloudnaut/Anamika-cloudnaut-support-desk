@@ -119,9 +119,12 @@ class RequestRepository:
         *,
         status: Optional[str] = None,
         assigned_to: Optional[int] = None,
+        assignment: Optional[str] = None,
         category: Optional[str] = None,
         priority: Optional[str] = None,
         requester_email: Optional[str] = None,
+        created_from: Optional[str] = None,
+        created_to: Optional[str] = None,
         sort_by: str = "created_at",
         sort_order: str = "desc",
     ):
@@ -137,12 +140,23 @@ class RequestRepository:
             query = query.filter(SupportRequest.status == status)
         if assigned_to is not None:
             query = query.filter(SupportRequest.assigned_to == assigned_to)
+        if assignment == "assigned":
+            query = query.filter(SupportRequest.assigned_to.isnot(None))
+        elif assignment == "unassigned":
+            query = query.filter(SupportRequest.assigned_to.is_(None))
         if category:
             query = query.filter(SupportRequest.category == category)
         if priority:
             query = query.filter(SupportRequest.priority == priority)
         if requester_email:
             query = query.filter(func.lower(SupportRequest.requester_email) == requester_email.lower())
+        # Inclusive calendar-day range on the created_at date. Matches the
+        # dashboard's 7-day trend buckets (func.date == YYYY-MM-DD).
+        created_date = func.date(SupportRequest.created_at)
+        if created_from:
+            query = query.filter(created_date >= created_from)
+        if created_to:
+            query = query.filter(created_date <= created_to)
 
         column = sort_columns[sort_by]
         query = query.order_by(column.asc() if sort_order == "asc" else column.desc())
@@ -245,6 +259,16 @@ class RequestRepository:
             .group_by(SupportRequest.status)
             .all()
         )
+        priority_counts = dict(
+            self.db.query(SupportRequest.priority, func.count(SupportRequest.id))
+            .group_by(SupportRequest.priority)
+            .all()
+        )
+        category_counts = dict(
+            self.db.query(SupportRequest.category, func.count(SupportRequest.id))
+            .group_by(SupportRequest.category)
+            .all()
+        )
         assignee_counts = dict(
             self.db.query(TeamMember.name, func.count(SupportRequest.id))
             .join(TeamMember, SupportRequest.assigned_to == TeamMember.id)
@@ -260,4 +284,35 @@ class RequestRepository:
             .filter(SupportRequest.assigned_to.is_(None))
             .count(),
             "by_assignee": assignee_counts,
+            "by_priority": priority_counts,
+            "by_category": category_counts,
+            "recent": self._recent_ticket_trend(),
         }
+
+    def _recent_ticket_trend(self, days: int = 7):
+        """Tickets created per calendar day for the last `days` days (oldest first).
+
+        Returns a dense series (zero-filled) so the frontend can draw a trend
+        without having to reconstruct missing dates.
+        """
+        from datetime import datetime, timedelta, timezone
+
+        today = datetime.now(timezone.utc).date()
+        start = today - timedelta(days=days - 1)
+
+        created_date = func.date(SupportRequest.created_at)
+        rows = (
+            self.db.query(created_date, func.count(SupportRequest.id))
+            .filter(SupportRequest.created_at.isnot(None))
+            .filter(created_date >= start.isoformat())
+            .group_by(created_date)
+            .all()
+        )
+        counts_by_day = {str(day): int(count) for day, count in rows}
+
+        series = []
+        for offset in range(days):
+            day = start + timedelta(days=offset)
+            key = day.isoformat()
+            series.append({"date": key, "count": counts_by_day.get(key, 0)})
+        return series

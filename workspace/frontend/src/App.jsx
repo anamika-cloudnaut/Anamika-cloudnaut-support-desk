@@ -411,7 +411,7 @@ function App() {
 
             <div className="form-divider"></div>
 
-            <Dashboard />
+            <Dashboard user={session.user} />
 
           </section>
         )}

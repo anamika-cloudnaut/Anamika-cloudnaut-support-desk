@@ -124,7 +124,23 @@ class RequestService:
             raise ValueError("Invalid sort field.")
         if filters.get("sort_order") not in {"asc", "desc"}:
             raise ValueError("Sort order must be 'asc' or 'desc'.")
+        for date_field in ("created_from", "created_to"):
+            value = filters.get(date_field)
+            if value:
+                self._validate_date(value)
+        assignment = filters.get("assignment")
+        if assignment not in (None, "assigned", "unassigned"):
+            raise ValueError("assignment filter must be 'assigned' or 'unassigned'.")
         return self.repository.list_requests(**filters)
+
+    @staticmethod
+    def _validate_date(value: str):
+        from datetime import date
+
+        try:
+            date.fromisoformat(str(value))
+        except ValueError as err:
+            raise ValueError("Date filters must be in YYYY-MM-DD format.") from err
 
     def _get_request(self, request_id: int):
         if request_id <= 0:

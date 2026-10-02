@@ -1,11 +1,15 @@
 import { useState, useEffect, useMemo } from 'react'
-import { apiFetch } from '../api'
+import { listRequests } from '../api'
 
 const STATUS_OPTIONS = ['Open', 'In Progress', 'Blocked', 'Resolved']
 const PRIORITY_OPTIONS = ['Low', 'Medium', 'High', 'Critical']
 const CATEGORY_OPTIONS = ['Application', 'Access', 'Infrastructure', 'Data', 'Other']
 
-function TicketList({ onSelectTicket }) {
+// `filters` are server-side filters applied to GET /requests (e.g. from a
+// dashboard drill-down). The in-view filter bar refines the returned set
+// client-side. Serialising `filters` keeps the fetch effect stable.
+function TicketList({ onSelectTicket, filters = null }) {
+  const filterKey = filters ? JSON.stringify(filters) : ''
   const [tickets, setTickets] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -16,32 +20,30 @@ function TicketList({ onSelectTicket }) {
   const [sortBy, setSortBy] = useState('created_at')
   const [sortDir, setSortDir] = useState('desc')
 
-  async function fetchTickets() {
-    setLoading(true)
-    setError('')
-
-    try {
-      const response = await apiFetch('/requests')
-      const data = await response.json()
-
-      console.log('Tickets fetched:', data)
-
-      if (!response.ok) {
-        throw new Error(data.detail || 'Failed to load tickets')
-      }
-
-      setTickets(Array.isArray(data) ? data : data.results || [])
-    } catch (fetchError) {
-      console.error('Request failed:', fetchError)
-      setError(fetchError.message || 'Could not connect to the API.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
   useEffect(() => {
+    let active = true
+
+    async function fetchTickets() {
+      setLoading(true)
+      setError('')
+      try {
+        const response = await listRequests(filters || {})
+        const data = await response.json()
+        if (!response.ok) {
+          throw new Error(data.detail || 'Failed to load tickets')
+        }
+        if (active) setTickets(Array.isArray(data) ? data : data.results || [])
+      } catch (fetchError) {
+        if (active) setError(fetchError.message || 'Could not connect to the API.')
+      } finally {
+        if (active) setLoading(false)
+      }
+    }
+
     fetchTickets()
-  }, [])
+    return () => { active = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterKey])
 
   const visibleTickets = useMemo(() => {
     let result = [...tickets]

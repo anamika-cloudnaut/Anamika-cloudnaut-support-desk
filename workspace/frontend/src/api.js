@@ -27,6 +27,48 @@ export function apiFetch(path, options = {}) {
   return fetch(`${API_URL}${path}`, { ...options, headers })
 }
 
+export function getDashboardSummary() {
+  return apiFetch('/dashboard/summary')
+}
+
+// Supported server-side filters on GET /requests. Anything else is ignored so
+// the frontend never silently relies on an unsupported param.
+const REQUEST_FILTER_KEYS = [
+  'status',
+  'assigned_to',
+  'assignment',
+  'category',
+  'priority',
+  'created_from',
+  'created_to',
+  'sort_by',
+  'sort_order',
+]
+
+export function buildRequestQuery(filters = {}) {
+  const params = new URLSearchParams()
+  for (const key of REQUEST_FILTER_KEYS) {
+    const value = filters[key]
+    if (value !== undefined && value !== null && value !== '') {
+      params.set(key, value)
+    }
+  }
+  const query = params.toString()
+  return query ? `/requests?${query}` : '/requests'
+}
+
+export function listRequests(filters = {}) {
+  return apiFetch(buildRequestQuery(filters))
+}
+
+export function listAccessRequests(status = 'pending') {
+  return apiFetch(`/access-requests?status=${encodeURIComponent(status)}`)
+}
+
+export function listTeamMembers(activeOnly = false) {
+  return apiFetch(`/team-members?active_only=${activeOnly ? 'true' : 'false'}`)
+}
+
 export function listRequestAttachments(requestId) {
   return apiFetch(`/requests/${requestId}/attachments`)
 }
