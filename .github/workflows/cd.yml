@@ -1,0 +1,49 @@
+name: CD (deploy to AWS)
+
+# Manual trigger by default (click "Run workflow"). Auto-deploy on push to main
+# is included but commented — enable it only when you want every merge to deploy.
+on:
+  workflow_dispatch:
+  # push:
+  #   branches: [main]
+
+# OIDC needs id-token write; checkout needs contents read.
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: cd-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: cdk deploy SupportDeskDev
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::471116065034:role/github-actions-deploy
+          aws-region: ap-south-1
+
+      - name: Confirm identity
+        run: aws sts get-caller-identity
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install infra dependencies
+        working-directory: infra
+        run: npm ci
+
+      - name: CDK deploy
+        working-directory: infra
+        run: npx cdk deploy SupportDeskDev --require-approval never
+        env:
+          CDK_DEFAULT_ACCOUNT: "471116065034"
+          CDK_DEFAULT_REGION: ap-south-1
