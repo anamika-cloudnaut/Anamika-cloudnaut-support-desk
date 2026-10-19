@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import * as cdk from 'aws-cdk-lib/core';
 import { SupportDeskStack } from '../lib/support-desk-stack';
+import { GithubOidcStack } from '../lib/github-oidc-stack';
 
 /**
  * App entry point for the Cloudnaut Support Desk infrastructure.
@@ -44,4 +45,11 @@ new SupportDeskStack(app, `${prefix}SupportDeskProd`, {
   stage: 'prod',
   senderEmail,
   description: 'Cloudnaut Support Desk — prod environment',
+});
+
+// One-time: lets GitHub Actions deploy via OIDC (no long-lived keys in GitHub).
+new GithubOidcStack(app, `${prefix}GithubOidc`, {
+  env,
+  repo: 'anamika-cloudnaut/Anamika-cloudnaut-support-desk',
+  description: 'GitHub Actions OIDC provider + deploy role',
 });
