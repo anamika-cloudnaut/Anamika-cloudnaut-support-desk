@@ -8,6 +8,7 @@ function AccessRequestReview() {
 	const [error, setError] = useState('')
 	const [loading, setLoading] = useState(true)
 	const [reviewingId, setReviewingId] = useState(null)
+	const [approved, setApproved] = useState(null) // { email, password } to relay
 
 	useEffect(() => {
 		let active = true
@@ -36,6 +37,11 @@ function AccessRequestReview() {
 			})
 			const data = await response.json()
 			if (!response.ok) throw new Error(data.detail || 'Could not review this request.')
+			// On approval the backend returns a temporary password to relay to
+			// the new user (they set their own on first login).
+			if (status === 'approved' && data.temporary_password) {
+				setApproved({ email: data.email, password: data.temporary_password })
+			}
 			setRequests((current) => current.filter((request) => request.id !== requestId))
 		} catch (reviewError) {
 			setError(reviewError.message || 'Could not connect to the service.')
@@ -49,6 +55,14 @@ function AccessRequestReview() {
 	return (
 		<div className="access-request-list">
 			{error && <div className="error-box"><strong>Request action failed</strong><span>{error}</span></div>}
+			{approved && (
+				<div className="approval-credentials" role="status">
+					<strong>Account approved for {approved.email}</strong>
+					<p>Share this temporary password with the user. They'll set their own on first sign-in:</p>
+					<code className="mfa-secret">{approved.password}</code>
+					<button type="button" className="secondary-button" onClick={() => setApproved(null)}>Done</button>
+				</div>
+			)}
 			{requests.length === 0 ? (
 				<p className="access-request-state">There are no pending access requests.</p>
 			) : requests.map((request) => (

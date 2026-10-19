@@ -9,7 +9,7 @@ from schemas.assignment import AssignmentRequest
 from schemas.dashboard import DashboardSummary
 from schemas.history import HistoryResponse
 from schemas.note import NoteCreate, NoteResponse, ProgressUpdateResponse
-from schemas.password_reset import PasswordResetConfirm, PasswordResetRequest
+from schemas.password_reset import ChangePasswordRequest, PasswordResetConfirm, PasswordResetRequest
 from schemas.request import TicketCreate, TicketResponse, TicketUpdate
 from schemas.team_members import (
     LoginRequest,
@@ -439,6 +439,19 @@ async def reset_password(request: PasswordResetConfirm):
         "POST",
         "/internal/auth/reset-password",
         json=request.model_dump(mode="json"),
+    )
+
+
+@team_router.post("/auth/change-password")
+async def change_password(
+    request: ChangePasswordRequest,
+    user=Depends(get_current_user),
+):
+    return await backend_request(
+        "POST",
+        "/internal/auth/change-password",
+        json=request.model_dump(mode="json"),
+        access_token=user["token"],
     )
 
 

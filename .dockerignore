@@ -1,0 +1,33 @@
+# Keep Docker build contexts small and prevent CDK asset-staging recursion.
+# The backend and database images build from the repo root, so anything not
+# needed inside the image should be excluded here.
+
+# CDK synth output (lives in infra/cdk.out) — excluding it prevents the
+# infinite nested-copy that blows past the OS filename length limit.
+infra/cdk.out
+infra/node_modules
+infra/.git
+
+# Version control and IDE
+.git
+.gitignore
+.vscode
+.idea
+
+# Python caches / local virtualenvs
+**/__pycache__
+**/*.pyc
+workspace/backend/venv
+
+# Node (frontend) — not needed by the Python images
+workspace/frontend/node_modules
+workspace/frontend/dist
+
+# Local env / secrets — never bake into an image
+.env
+.env.*
+*.swp
+
+# Docs / infra that app images don't need
+infra
+README.md

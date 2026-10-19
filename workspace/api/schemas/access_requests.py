@@ -29,3 +29,6 @@ class AccessRequestResponse(BaseModel):
 	reviewed_at: datetime | None
 	reviewed_by: int | None
 	review_note: str | None
+	# Returned only when an access request is approved: the temporary password
+	# the admin must relay to the new user (they change it on first login).
+	temporary_password: str | None = None

@@ -1,4 +1,7 @@
-const API_URL = 'http://localhost:4000'
+// API base URL. Configurable at build time via Vite's VITE_API_URL env var so
+// the same source deploys anywhere (CloudFront build points this at the ALB).
+// Falls back to localhost for local dev / docker-compose.
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000'
 const MIME_TYPE_BY_EXTENSION = {
   jpg: 'image/jpeg',
   jpeg: 'image/jpeg',
@@ -13,8 +16,19 @@ const MIME_TYPE_BY_EXTENSION = {
   txt: 'text/plain',
 }
 
-export function apiFetch(path, options = {}) {
-  const token = localStorage.getItem('supportDeskToken')
+import { getIdToken, changePassword as cognitoChangePassword } from './cognito'
+
+export async function apiFetch(path, options = {}) {
+  // Prefer a fresh Cognito ID token (auto-refreshed by the SDK); fall back to
+  // the stored token so already-open sessions keep working.
+  let token = null
+  try {
+    token = await getIdToken()
+  } catch {
+    token = null
+  }
+  if (!token) token = localStorage.getItem('supportDeskToken')
+
   const headers = new Headers(options.headers || {})
   if (token) headers.set('Authorization', `Bearer ${token}`)
   if (
@@ -29,6 +43,11 @@ export function apiFetch(path, options = {}) {
 
 export function getDashboardSummary() {
   return apiFetch('/dashboard/summary')
+}
+
+// Change password now goes through Cognito (not the custom backend endpoint).
+export function changePassword(currentPassword, newPassword) {
+  return cognitoChangePassword(currentPassword, newPassword)
 }
 
 // Supported server-side filters on GET /requests. Anything else is ignored so

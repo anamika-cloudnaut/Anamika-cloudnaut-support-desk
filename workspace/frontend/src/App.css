@@ -2608,3 +2608,297 @@ textarea:focus-visible {
   font-size: 12.5px;
   color: #8ba0b6;
 }
+
+/* ---------------------------------------------------------
+   Phase A UI: nav arrows, centered actions, profile/settings
+   --------------------------------------------------------- */
+
+/* Panel header navigation arrows (replace the old × button) */
+.panel-nav {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.nav-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(10, 22, 38, 0.65);
+  color: #cfe0f2;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.nav-arrow:hover,
+.nav-arrow:focus-visible {
+  background: rgba(56, 189, 248, 0.18);
+  border-color: rgba(56, 189, 248, 0.55);
+  outline: none;
+}
+
+.nav-arrow:active {
+  transform: scale(0.94);
+}
+
+/* Centered vertical action list on the welcome card */
+.welcome-actions-centered {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.welcome-actions-centered .primary-button,
+.welcome-actions-centered .secondary-button {
+  width: 100%;
+  justify-content: space-between;
+}
+
+/* Session strip actions */
+.session-strip-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* ---- Profile + Settings ---- */
+.profile-container {
+  color: #dbe7f5;
+}
+
+.profile-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 22px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.profile-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #9fb4ca;
+  font: inherit;
+  font-size: 14px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.profile-tab:hover {
+  color: #eaf2ff;
+}
+
+.profile-tab.is-active {
+  color: #7dd3fc;
+  border-bottom-color: #38bdf8;
+  font-weight: 600;
+}
+
+.profile-details {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.profile-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+  font-weight: 700;
+  color: #06111e;
+  background: linear-gradient(135deg, #38bdf8, #6366f1);
+  flex: 0 0 auto;
+}
+
+.profile-fields {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  flex: 1;
+  min-width: 220px;
+}
+
+.profile-fields div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.profile-fields dt {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8ba0b6;
+}
+
+.profile-fields dd {
+  margin: 0;
+  font-size: 15px;
+  color: #eaf2ff;
+}
+
+.profile-role-badge {
+  display: inline-block;
+  padding: 3px 12px;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.16);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  color: #7dd3fc;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.settings-area {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.settings-card {
+  background: rgba(10, 22, 38, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 14px;
+  padding: 20px;
+}
+
+.settings-card h3 {
+  margin: 0 0 6px;
+}
+
+.settings-card-hint {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: #8ba0b6;
+}
+
+.settings-card-disabled {
+  opacity: 0.75;
+}
+
+.settings-notice {
+  color: #34d399;
+  font-size: 13px;
+  margin: 4px 0 0;
+}
+
+/* ---- MFA (TOTP) enrollment ---- */
+.mfa-status { font-size: 14px; margin: 0 0 12px; }
+.mfa-status.mfa-on { color: #34d399; }
+.mfa-status.mfa-off { color: #9fb4ca; }
+
+.mfa-enroll { display: flex; flex-direction: column; gap: 10px; }
+
+.mfa-qr {
+  width: 180px;
+  height: 180px;
+  align-self: center;
+  background: #fff;
+  padding: 8px;
+  border-radius: 10px;
+}
+
+.mfa-secret {
+  display: block;
+  word-break: break-all;
+  background: rgba(148, 163, 184, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  color: #cfe0f2;
+}
+
+/* ---------------------------------------------------------
+   Header identity avatar + session strip polish
+   --------------------------------------------------------- */
+.session-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  background: rgba(10, 22, 38, 0.55);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 14px;
+}
+
+.session-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 10px;
+  color: inherit;
+  font: inherit;
+  transition: background 0.12s ease;
+}
+
+.session-identity:hover { background: rgba(56, 189, 248, 0.1); }
+
+.session-avatar {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  font-weight: 700;
+  color: #06111e;
+  background: linear-gradient(135deg, #38bdf8, #6366f1);
+}
+
+.session-identity-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  text-align: left;
+}
+
+.session-name { color: #eaf2ff; font-weight: 600; font-size: 14px; }
+.session-role {
+  color: #8ba0b6;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* Ticket success: email confirmation banner */
+.email-confirmation {
+  margin: 12px auto 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  max-width: 440px;
+}
+.email-confirmation-ok {
+  background: rgba(52, 211, 153, 0.12);
+  border: 1px solid rgba(52, 211, 153, 0.35);
+  color: #6ee7b7;
+}
+.email-confirmation-soft {
+  background: rgba(148, 163, 184, 0.1);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  color: #aebdcf;
+}

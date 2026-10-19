@@ -120,6 +120,39 @@ def forgot_password(payload: Dict[str, Any], db: Session = Depends(get_db)):
     return {"message": "If an active user uses that email, password reset instructions have been sent."}
 
 
+@app.post("/internal/auth/change-password")
+def change_password(
+    payload: Dict[str, Any],
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """Change the signed-in user's own password (verify current, set new)."""
+    current_password = payload.get("current_password")
+    new_password = payload.get("new_password")
+    if not isinstance(new_password, str) or len(new_password) < 12:
+        raise HTTPException(status_code=400, detail="New password must be at least 12 characters.")
+    if not isinstance(current_password, str) or not current_password:
+        raise HTTPException(status_code=400, detail="Current password is required.")
+    if new_password == current_password:
+        raise HTTPException(status_code=400, detail="New password must be different from the current password.")
+
+    member = db.query(TeamMember).filter(TeamMember.id == user["id"]).first()
+    if not member or not member.is_active:
+        raise HTTPException(status_code=404, detail="Account not found.")
+    if not verify_password(current_password, member.password_hash):
+        raise HTTPException(status_code=400, detail="Current password is incorrect.")
+
+    member.password_hash = hash_password(new_password)
+    # Invalidate any outstanding password-reset tokens for this user.
+    for token in db.query(PasswordResetToken).filter(
+        PasswordResetToken.user_id == member.id,
+        PasswordResetToken.used_at.is_(None),
+    ):
+        token.used_at = datetime.now(timezone.utc)
+    db.commit()
+    return {"message": "Password updated."}
+
+
 @app.post("/internal/auth/reset-password")
 def reset_password(payload: Dict[str, Any], db: Session = Depends(get_db)):
     raw_token = payload.get("token")
@@ -168,6 +201,13 @@ def create_internal_request(
             result["id"],
             "created",
             f"Request created by {result['requester_name']}",
+        )
+        # Best-effort confirmation email to the requester (never blocks creation).
+        from app.services.email_service import send_ticket_confirmation
+        result["email_sent"] = send_ticket_confirmation(
+            result.get("requester_email", ""),
+            result.get("requester_name", ""),
+            result,
         )
         return result
     except ValueError as err:
@@ -496,6 +536,14 @@ def review_access_request(
         existing_member = db.query(TeamMember).filter(TeamMember.email.ilike(request.email)).first()
         if existing_member:
             raise HTTPException(status_code=409, detail="An account with this email already exists.")
+        # Create the Cognito identity so the approved user can log in. The signup
+        # only stored a password HASH (unusable in Cognito), so we generate a
+        # KNOWN temporary password, create the user with it (force-change on
+        # first login), and return it so the admin can share it with the user.
+        import secrets as _secrets
+        from app.services.cognito_admin import create_user as cognito_create_user
+        temp_password = f"Temp-{_secrets.token_urlsafe(9)}-2026!"
+        cognito_create_user(request.email, request.name, request.role, password=temp_password, permanent=False)
         db.add(TeamMember(
             name=request.name,
             email=request.email,
@@ -509,7 +557,12 @@ def review_access_request(
     request.review_note = review_note
     db.commit()
     db.refresh(request)
-    return access_request_response(request)
+    response = access_request_response(request)
+    if decision == "approved":
+        # Surfaced to the admin to relay to the new user; they set their own
+        # password on first login. (Once SES is verified, switch to emailing.)
+        response["temporary_password"] = temp_password
+    return response
 
 
 @app.post("/internal/team-members", status_code=status.HTTP_201_CREATED)
@@ -531,6 +584,12 @@ def create_team_member(
         raise HTTPException(status_code=400, detail="Password must be at least 12 characters.")
     if role not in {"admin", "support", "employee"}:
         raise HTTPException(status_code=400, detail="Role must be admin, support, or employee.")
+    from app.services.cognito_admin import create_user as cognito_create_user
+
+    # Create the Cognito identity FIRST so the person can actually log in. Doing
+    # this before the RDS write means a Cognito/policy failure doesn't leave an
+    # orphan RDS row. Password is set permanent -> immediately usable, no reset.
+    cognito_create_user(email, name, role, password=password, permanent=True)
     try:
         member = RequestService(RequestRepository(db)).create_team_member({
             "name": name,
@@ -541,6 +600,7 @@ def create_team_member(
         })
         return member_response(member)
     except ValueError as error:
+        # The Cognito user exists but email already in RDS — surface a conflict.
         raise HTTPException(status_code=409, detail=str(error)) from error
 
 

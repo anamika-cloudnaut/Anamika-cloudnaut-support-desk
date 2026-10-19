@@ -44,6 +44,17 @@ function TicketSuccess({
           <strong>#{ticket?.id}</strong>
         </div>
 
+        {ticket?.email_sent === true && (
+          <p className="email-confirmation email-confirmation-ok" role="status">
+            ✉️ A confirmation email was sent to {ticket?.requester_email}.
+          </p>
+        )}
+        {ticket?.email_sent === false && (
+          <p className="email-confirmation email-confirmation-soft" role="status">
+            Your ticket was created. (A confirmation email could not be sent right now.)
+          </p>
+        )}
+
         <div className="success-details">
 
           <div className="detail-item full-width">

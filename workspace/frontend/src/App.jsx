@@ -11,9 +11,45 @@ import TicketSuccess from './components/TicketSuccess'
 import TicketList from './components/TicketList'
 import TicketDetail from './components/TicketDetail'
 import Dashboard from './components/Dashboard'
-import ProgressUpdates from './components/ProgressUpdates'
 import RequestTracker from './components/RequestTracker'
+import Profile from './components/Profile'
+import { signOut as cognitoSignOut } from './cognito'
 import './App.css'
+
+// Shared panel header: a back arrow (to the previous screen, or home) and a
+// forward arrow that returns to the home/welcome screen (replaces the old ×).
+// Defined at module scope so it is not recreated on every App render.
+function PanelHeader({ label, title, description, onBack, onHome }) {
+  return (
+    <div className="form-header">
+      <div className="panel-nav">
+        <button
+          type="button"
+          className="nav-arrow nav-back"
+          onClick={onBack || onHome}
+          aria-label="Go back"
+          title="Back"
+        >
+          ←
+        </button>
+        <div>
+          {label && <span className="section-label">{label}</span>}
+          {title && <h2>{title}</h2>}
+          {description && <p>{description}</p>}
+        </div>
+      </div>
+      <button
+        type="button"
+        className="nav-arrow nav-forward"
+        onClick={onHome}
+        aria-label="Back to home"
+        title="Home"
+      >
+        →
+      </button>
+    </div>
+  )
+}
 
 function App() {
   const resetToken = new URLSearchParams(window.location.search).get('reset_token')
@@ -32,6 +68,7 @@ function App() {
   const [showTeam, setShowTeam] = useState(false)
   const [showAccessRequests, setShowAccessRequests] = useState(false)
   const [showRequestTracker, setShowRequestTracker] = useState(false)
+  const [showProfile, setShowProfile] = useState(false)
   const [selectedTicketId, setSelectedTicketId] = useState(null)
   const [createdTicket, setCreatedTicket] = useState(null)
   const [failedTicketAttachments, setFailedTicketAttachments] = useState([])
@@ -60,6 +97,7 @@ function App() {
     setShowTeam(false)
     setShowAccessRequests(false)
     setShowRequestTracker(false)
+    setShowProfile(false)
     setSelectedTicketId(null)
   }
 
@@ -73,6 +111,7 @@ function App() {
   }
 
   const handleLogout = () => {
+    cognitoSignOut().catch(() => {})
     localStorage.removeItem('supportDeskToken')
     localStorage.removeItem('supportDeskUser')
     setSession(null)
@@ -98,7 +137,7 @@ function App() {
     )
   }
 
-  const showingWelcome = !showForm && !showList && !showDashboard && !showTeam && !showAccessRequests && !showRequestTracker && !selectedTicketId
+  const showingWelcome = !showForm && !showList && !showDashboard && !showTeam && !showAccessRequests && !showRequestTracker && !showProfile && !selectedTicketId
 
   return (
     <div className="app-shell">
@@ -174,8 +213,24 @@ function App() {
           )
         ) : (
           <div className="session-strip">
-            <span>{session.user.name} <strong>{session.user.role}</strong></span>
-            <button type="button" className="secondary-button" onClick={handleLogout}>Sign out</button>
+            <button
+              type="button"
+              className="session-identity"
+              onClick={() => { goHome(); setShowProfile(true) }}
+              title="View your profile"
+            >
+              <span className="session-avatar" aria-hidden="true">
+                {(session.user.name || session.user.email || '?').charAt(0).toUpperCase()}
+              </span>
+              <span className="session-identity-text">
+                <span className="session-name">{session.user.name}</span>
+                <span className="session-role">{session.user.role}</span>
+              </span>
+            </button>
+            <div className="session-strip-actions">
+              <button type="button" className="secondary-button" onClick={() => { goHome(); setShowProfile(true) }}>My Profile</button>
+              <button type="button" className="secondary-button" onClick={handleLogout}>Sign out</button>
+            </div>
           </div>
         )}
 
@@ -197,7 +252,7 @@ function App() {
               the details our team needs to investigate your issue.
             </p>
 
-            <div className="welcome-actions">
+            <div className="welcome-actions welcome-actions-centered">
               <button
                 className="primary-button"
                 onClick={() => setShowForm(true)}
@@ -245,44 +300,15 @@ function App() {
               )}
             </div>
 
-            <div className="feature-grid">
-
-              <div className="feature-item">
-                <div className="feature-icon">⚡</div>
-                <div>
-                  <h3>Quick Submission</h3>
-                  <p>
-                    Create a request in just a few steps.
-                  </p>
-                </div>
-              </div>
-
-              <div className="feature-item">
-                <div className="feature-icon">🛠️</div>
-                <div>
-                  <h3>Technical Support</h3>
-                  <p>
-                    Report application, access or infrastructure issues.
-                  </p>
-                </div>
-              </div>
-
-              {session.user.role === 'employee' ? (
+            {/* Employees keep their functional request tracker on the home page. */}
+            {session.user.role === 'employee' && (
+              <div className="feature-grid">
                 <RequestTracker
                   compact
                   onViewAll={() => setShowRequestTracker(true)}
                 />
-              ) : (
-                <div className="feature-item">
-                  <div className="feature-icon">📋</div>
-                  <div>
-                    <h3>Track Requests</h3>
-                    <p>Every submitted request gets a unique ticket ID.</p>
-                  </div>
-                </div>
-              )}
-
-            </div>
+              </div>
+            )}
 
           </section>
         )}
@@ -290,30 +316,12 @@ function App() {
         {session && showForm && (
           <section className="ticket-form-card">
 
-            <div className="form-header">
-
-              <div>
-                <span className="section-label">
-                  NEW SUPPORT REQUEST
-                </span>
-
-                <h2>Create Ticket</h2>
-
-                <p>
-                  Enter the information below to submit your
-                  support request.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                className="close-button"
-                onClick={() => setShowForm(false)}
-              >
-                ×
-              </button>
-
-            </div>
+            <PanelHeader
+              label="NEW SUPPORT REQUEST"
+              title="Create Ticket"
+              description="Enter the information below to submit your support request."
+              onHome={goHome}
+            />
 
             <div className="form-divider"></div>
 
@@ -328,29 +336,12 @@ function App() {
         {session && showList && !selectedTicketId && (
           <section className="ticket-form-card">
 
-            <div className="form-header">
-
-              <div>
-                <span className="section-label">
-                  ALL REQUESTS
-                </span>
-
-                <h2>{session.user.role === 'employee' ? 'My Requests' : 'Support Requests'}</h2>
-
-                <p>
-                  View, filter and sort all submitted tickets. Click a row for details.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                className="close-button"
-                onClick={goHome}
-              >
-                ×
-              </button>
-
-            </div>
+            <PanelHeader
+              label="ALL REQUESTS"
+              title={session.user.role === 'employee' ? 'My Requests' : 'Support Requests'}
+              description="View, filter and sort all submitted tickets. Click a row for details."
+              onHome={goHome}
+            />
 
             <div className="form-divider"></div>
 
@@ -364,18 +355,11 @@ function App() {
         {session && selectedTicketId && (
           <section className="ticket-form-card">
 
-            <div className="form-header">
-              <div>
-                <span className="section-label">TICKET DETAIL</span>
-              </div>
-              <button
-                type="button"
-                className="close-button"
-                onClick={goHome}
-              >
-                ×
-              </button>
-            </div>
+            <PanelHeader
+              label="TICKET DETAIL"
+              onBack={() => setSelectedTicketId(null)}
+              onHome={goHome}
+            />
 
             <div className="form-divider"></div>
 
@@ -391,23 +375,12 @@ function App() {
         {session && showDashboard && (session.user.role === 'support' || session.user.role === 'admin') && (
           <section className="ticket-form-card">
 
-            <div className="form-header">
-
-              <div>
-                <span className="section-label">OVERVIEW</span>
-                <h2>Dashboard</h2>
-                <p>Summary of all support requests.</p>
-              </div>
-
-              <button
-                type="button"
-                className="close-button"
-                onClick={goHome}
-              >
-                ×
-              </button>
-
-            </div>
+            <PanelHeader
+              label="OVERVIEW"
+              title="Dashboard"
+              description="Summary of all support requests."
+              onHome={goHome}
+            />
 
             <div className="form-divider"></div>
 
@@ -418,14 +391,12 @@ function App() {
 
         {session && showRequestTracker && session.user.role === 'employee' && !selectedTicketId && (
           <section className="ticket-form-card request-tracker-page">
-            <div className="form-header">
-              <div>
-                <span className="section-label">YOUR REQUESTS</span>
-                <h2>Track Requests</h2>
-                <p>Follow each request through the support process.</p>
-              </div>
-              <button type="button" className="close-button" onClick={goHome} aria-label="Back to dashboard">×</button>
-            </div>
+            <PanelHeader
+              label="YOUR REQUESTS"
+              title="Track Requests"
+              description="Follow each request through the support process."
+              onHome={goHome}
+            />
             <div className="form-divider"></div>
             <RequestTracker onOpenTicket={(ticketId) => setSelectedTicketId(ticketId)} />
           </section>
@@ -433,14 +404,12 @@ function App() {
 
         {session && showTeam && session.user.role === 'admin' && (
           <section className="ticket-form-card">
-            <div className="form-header">
-              <div>
-                <span className="section-label">ADMINISTRATION</span>
-                <h2>Staff Access</h2>
-                <p>Create accounts, assign roles, reset passwords, and disable access.</p>
-              </div>
-              <button type="button" className="close-button" onClick={goHome}>×</button>
-            </div>
+            <PanelHeader
+              label="ADMINISTRATION"
+              title="Staff Access"
+              description="Create accounts, assign roles, reset passwords, and disable access."
+              onHome={goHome}
+            />
             <div className="form-divider"></div>
             <TeamManagement />
           </section>
@@ -448,16 +417,27 @@ function App() {
 
         {session && showAccessRequests && session.user.role === 'admin' && (
           <section className="ticket-form-card">
-            <div className="form-header">
-              <div>
-                <span className="section-label">ADMINISTRATION</span>
-                <h2>Access Requests</h2>
-                <p>Review Staff and Support Team account requests.</p>
-              </div>
-              <button type="button" className="close-button" onClick={goHome}>×</button>
-            </div>
+            <PanelHeader
+              label="ADMINISTRATION"
+              title="Access Requests"
+              description="Review Staff and Support Team account requests."
+              onHome={goHome}
+            />
             <div className="form-divider"></div>
             <AccessRequestReview />
+          </section>
+        )}
+
+        {session && showProfile && (
+          <section className="ticket-form-card">
+            <PanelHeader
+              label="ACCOUNT"
+              title="My Profile"
+              description="View your account details and manage settings."
+              onHome={goHome}
+            />
+            <div className="form-divider"></div>
+            <Profile user={session.user} />
           </section>
         )}
 

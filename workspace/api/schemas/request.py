@@ -57,3 +57,5 @@ class TicketResponse(BaseModel):
     due_date: date | None = None
     created_at: datetime
     updated_at: datetime
+    # Set on creation: whether the confirmation email was sent to the requester.
+    email_sent: bool | None = None

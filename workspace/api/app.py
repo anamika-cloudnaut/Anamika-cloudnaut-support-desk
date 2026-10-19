@@ -34,6 +34,19 @@ app.add_middleware(
 # HEALTH CHECK
 # ---------------------------------------------------------
 
+@app.middleware("http")
+async def no_store_cache_headers(request, call_next):
+    """Never allow API responses to be cached.
+
+    These responses are per-user and authenticated; CloudFront (or any
+    intermediary) must not store or reuse them across requests/users.
+    """
+    response = await call_next(request)
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
+    response.headers["Pragma"] = "no-cache"
+    return response
+
+
 @app.get("/health", tags=["Health"])
 def health_check():
     return {
