@@ -20,7 +20,6 @@ jobs:
   deploy:
     name: cdk deploy SupportDeskDev
     runs-on: ubuntu-latest
-    environment: production
     steps:
       - uses: actions/checkout@v4
 
